@@ -7,7 +7,7 @@ interface BaseUser {
     lastName: string;
     username: string;
     phone: string;
-    role: Role
+    role: Role | string
 }
 
 export interface UserCredentials {

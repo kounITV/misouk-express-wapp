@@ -74,6 +74,7 @@ const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({
 }) => {
   const { open, setOpen } = React.useContext(DropdownMenuContext)
   const ref = React.useRef<HTMLDivElement>(null)
+  const [position, setPosition] = React.useState<'bottom' | 'top'>('bottom')
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -91,6 +92,23 @@ const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({
     }
   }, [open, setOpen])
 
+  React.useEffect(() => {
+    if (open && ref.current) {
+      const rect = ref.current.parentElement?.getBoundingClientRect()
+      if (!rect) return
+      
+      const viewportHeight = window.innerHeight
+      const spaceBelow = viewportHeight - rect.bottom
+      const menuHeight = 100 // Approximate menu height
+      
+      if (spaceBelow < menuHeight && rect.top > menuHeight) {
+        setPosition('top')
+      } else {
+        setPosition('bottom')
+      }
+    }
+  }, [open])
+
   if (!open) return null
 
   const alignmentClasses = {
@@ -99,14 +117,23 @@ const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({
     end: "right-0"
   }
 
+  const positionClasses = position === 'top' 
+    ? "bottom-full mb-1" 
+    : "top-full mt-1"
+
   return (
     <div
       ref={ref}
       className={cn(
-        "absolute top-full mt-1 z-50 min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 shadow-md",
+        "absolute z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 shadow-lg",
+        positionClasses,
         alignmentClasses[align],
         className
       )}
+      style={{
+        maxHeight: '200px',
+        overflow: 'visible'
+      }}
     >
       {children}
     </div>

@@ -89,27 +89,20 @@ export const Pagination: React.FC<PaginationProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
-      <div className="flex items-center space-x-4">
-        <div className="text-sm text-gray-700">
-          ສະແດງ {startItem} ຫາ {endItem} ຈາກ {totalRecords} ລາຍການ
-        </div>
-        
-        {/* Items per page selector */}
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-700">ສະແດງ:</span>
-          <select
-            value={itemsPerPage}
-            onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-            className="border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#0c64b0] focus:border-[#0c64b0]"
-          >
-            {itemsPerPageOptions.map((option) => (
-              <option key={option} value={option}>
-                {option} ລາຍການຕໍ່ໜ້າ
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="flex items-center justify-end px-4 py-3 bg-white border-t border-gray-200">
+      {/* Items per page selector */}
+      <div className="flex items-center mr-4">
+        <select
+          value={itemsPerPage}
+          onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+          className="border-2 border-gray-400 rounded px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0c64b0] focus:border-[#0c64b0] bg-white"
+        >
+          {itemsPerPageOptions.map((option) => (
+            <option key={option} value={option}>
+              {option} ລາຍການຕໍ່ໜ້າ
+            </option>
+          ))}
+        </select>
       </div>
       
       <div className="flex items-center space-x-2">
@@ -119,34 +112,17 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="sm"
           onClick={handlePrevious}
           disabled={!prevPage}
-          className="flex items-center gap-1"
+          className="flex items-center gap-1 text-black border-gray-300 hover:bg-gray-50"
         >
           <ChevronLeft className="h-4 w-4" />
           ກ່ອນໜ້າ
         </Button>
 
-        {/* Page Numbers */}
-        <div className="flex items-center space-x-1">
-          {getVisiblePages().map((page, index) => (
-            <React.Fragment key={index}>
-              {page === '...' ? (
-                <span className="px-3 py-1 text-gray-500">...</span>
-              ) : (
-                <Button
-                  variant={currentPage === page ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => onPageChange(page as number)}
-                  className={`min-w-[40px] ${
-                    currentPage === page 
-                      ? "bg-[#0c64b0] text-white hover:bg-[#247dc9]" 
-                      : "hover:bg-gray-50"
-                  }`}
-                >
-                  {page}
-                </Button>
-              )}
-            </React.Fragment>
-          ))}
+        {/* Page Info */}
+        <div className="flex items-center space-x-2 px-4">
+          <span className="text-sm text-black">
+            ໜ້າ {currentPage} ຈາກ {totalRecords}
+          </span>
         </div>
 
         {/* Next Button */}
@@ -155,7 +131,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           size="sm"
           onClick={handleNext}
           disabled={!nextPage}
-          className="flex items-center gap-1"
+          className="flex items-center gap-1 text-black border-gray-300 hover:bg-gray-50"
         >
           ຖັດໄປ
           <ChevronRight className="h-4 w-4" />

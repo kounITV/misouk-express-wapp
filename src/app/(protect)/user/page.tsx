@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Settings, Package, LogOut, Plus, MoreHorizontal } from "lucide-react";
+import { Users, Settings, Package, Plus, MoreHorizontal } from "lucide-react";
 import Image from "next/image";
 import { AuthService } from "@/lib/auth-service";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -23,7 +23,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import { LogoutButton } from "@/components/ui/logout-button";
 import { Pagination } from "@/components/ui/pagination";
+import { SidebarMenu } from "@/components/ui/sidebar-menu";
 import { apiEndpoints } from "@/lib/config";
 
 interface User {
@@ -60,12 +62,15 @@ interface RoleResponse {
   data?: ApiRole[];
 }
 
-const getRoleName = (role: string): string => {
-  switch (role) {
+const getRoleName = (role: any): string => {
+  // Safely extract role name if it's an object
+  const roleName = typeof role === 'string' ? role : (role?.name || role?.id || '');
+  
+  switch (roleName) {
     case 'super_admin': return 'ຊູບເປີແອັດມິນ';
     case 'thai_admin': return 'ແອັດມິນສາຂາໄທ';
     case 'lao_admin': return 'ແອັດມິນສາຂາລາວ';
-    default: return role;
+    default: return String(roleName || '');
   }
 };
 
@@ -268,44 +273,31 @@ export default function UserManagementPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-16 bg-[#0c64b0] flex flex-col items-center py-6 space-y-6">
-        {/* Logo */}
-        <div className="text-white">
-          <Image src="/logo-01.png" alt="MISOUK" width={32} height={32} className="w-8 h-8" />
-        </div>
-        
-        {/* Navigation Icons */}
-        <div className="flex flex-col space-y-4">
-          <div className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded cursor-pointer">
-            <Package className="w-6 h-6" />
-          </div>
-          <div className="p-2 text-white bg-white/20 rounded cursor-pointer">
-            <Users className="w-6 h-6" />
-          </div>
-          <div className="p-2 text-white/60 hover:text-white hover:bg-white/10 rounded cursor-pointer">
-            <Settings className="w-6 h-6" />
-          </div>
-        </div>
-      </div>
+      <SidebarMenu
+        currentUserRole={currentUser?.role ? (typeof currentUser.role === 'string' ? currentUser.role : currentUser.role.name) : 'super_admin'}
+        currentPath="/user"
+        onMenuClick={(href) => {
+          // Handle navigation
+          console.log('Navigate to:', href);
+        }}
+        onCollapseChange={(collapsed) => {
+          setSidebarCollapsed(collapsed);
+        }}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-[#0c64b0] text-white px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Image src="/logo-01.png" alt="MISOUK EXPRESS" width={120} height={40} className="h-8 w-auto" />
-          </div>
+        <header className="bg-[#0c64b0] text-white px-6 py-4 flex justify-end items-center">
+          <Image src="/logo-01.png" alt="MISOUK EXPRESS" width={120} height={40} className="h-8 w-auto absolute left-20" />
           <div className="flex items-center gap-4">
-            <span className="text-sm">{isMounted && currentUser ? currentUser.username : 'Super Admin'}</span>
-            <Button 
-              variant="outline" 
-              size="sm"
-              className="bg-transparent border-white text-white hover:bg-white hover:text-[#0c64b0]"
-              onClick={handleLogout}
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              ອອກຈາກລະບົບ
-            </Button>
+            <div className="text-white text-sm">
+              <div className="font-medium">{isMounted && currentUser ? currentUser.username : 'Super Admin'}</div>
+              {isMounted && currentUser && currentUser.role && (
+                <div className="text-xs text-blue-200">{getRoleName(currentUser.role)}</div>
+              )}
+            </div>
+            <LogoutButton onLogout={handleLogout} className="text-white" />
           </div>
         </header>
 
@@ -327,37 +319,35 @@ export default function UserManagementPage() {
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-lg font-medium text-gray-800">ລາຍການຜູ້ໃຊ້ງານ</CardTitle>
                   <div className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded">
-                    {loading ? 'ກຳລັງໂຫຼດ...' : 'ສິດຕາມສາຂາ'}
+                    {loading ? 'ກຳລັງໂຫຼດ...' : ''}
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
+              <CardContent className="p-6">
+                <div className="overflow-x-auto relative">
                    <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                           ລຳດັບ
                         </th>
-                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                         <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                            ຊື່ຜູ້ໃຊ້
                          </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                           ຊື່
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                           ນາມສະກຸນ
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                           ເພດ
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                           ເບີໂທ
                         </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          ສິດຕາມສາຂາ
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+
+                        <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                           ຈັດການ
                         </th>
                       </tr>
@@ -365,7 +355,7 @@ export default function UserManagementPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {users.length === 0 && !loading && (
                         <tr>
-                          <td className="px-6 py-6 text-center text-sm text-gray-500" colSpan={7}>ບໍ່ພົບຂໍ້ມູນ</td>
+                          <td className="px-6 py-6 text-center text-sm text-gray-500" colSpan={6}>ບໍ່ພົບຂໍ້ມູນ</td>
                         </tr>
                       )}
                       {users.map((user, index) => (
@@ -387,9 +377,6 @@ export default function UserManagementPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {user.phone}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {getRoleName(user.role)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <DropdownMenu>
@@ -436,7 +423,7 @@ export default function UserManagementPage() {
             >
               <DialogContent className="max-w-lg bg-white">
                 <DialogHeader>
-                  <DialogTitle>ເພີ່ມຜູ້ໃຊ້</DialogTitle>
+                  <DialogTitle className="text-black font-bold">ເພີ່ມຜູ້ໃຊ້</DialogTitle>
                   <DialogDescription>ກະລຸນາຕື່ມຂໍ້ມູນທີ່ຈຳເປັນ</DialogDescription>
                 </DialogHeader>
                 {/* General Info */}
@@ -446,30 +433,30 @@ export default function UserManagementPage() {
                     <Label className="mb-1 block text-black">ເພດ</Label>
                     <div className="flex items-center gap-6">
                       <label className="flex items-center gap-2 text-sm">
-                        <input type="radio" name="gender" value="male" checked={form.gender === 'male'} onChange={() => setForm({ ...form, gender: 'male' })} /> ຊາຍ
+                        <input type="radio" name="gender" value="male" checked={form.gender === 'male'} onChange={() => setForm({ ...form, gender: 'male' })} className="accent-[#2E72D2]" /> ຊາຍ
                       </label>
                       <label className="flex items-center gap-2 text-sm">
-                        <input type="radio" name="gender" value="female" checked={form.gender === 'female'} onChange={() => setForm({ ...form, gender: 'female' })} /> ຍິງ
+                        <input type="radio" name="gender" value="female" checked={form.gender === 'female'} onChange={() => setForm({ ...form, gender: 'female' })} className="accent-[#2E72D2]" /> ຍິງ
                       </label>
                     </div>
                   </div>
                   <div>
                     <Label htmlFor="firstname" className="text-black">ຊື່</Label>
-                    <Input id="firstname" placeholder="ປ້ອນຊື່.." value={form.firstname} onChange={(e) => setForm({ ...form, firstname: e.target.value })} className="text-black placeholder:text-gray-500" />
+                    <Input id="firstname" placeholder="ປ້ອນຊື່.." value={form.firstname} onChange={(e) => setForm({ ...form, firstname: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                   <div>
                     <Label htmlFor="lastname" className="text-black">ນາມສະກຸນ</Label>
-                    <Input id="lastname" placeholder="ປ້ອນນາມສະກຸນ.." value={form.lastname} onChange={(e) => setForm({ ...form, lastname: e.target.value })} className="text-black placeholder:text-gray-500" />
+                    <Input id="lastname" placeholder="ປ້ອນນາມສະກຸນ.." value={form.lastname} onChange={(e) => setForm({ ...form, lastname: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                   <div>
                     <Label htmlFor="phone" className="text-black">ເບີໂທ</Label>
-                    <Input id="phone" placeholder="ປ້ອນເບີໂທ.." value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="text-black placeholder:text-gray-500" />
+                    <Input id="phone" placeholder="ປ້ອນເບີໂທ.." value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                   <div>
                     <Label htmlFor="role" className="text-black">ສິດຕາມສາຂາ</Label>
                     <select
                       id="role"
-                      className="mt-2 block w-full border rounded-md p-2 text-black"
+                      className="mt-2 block w-full border border-gray-300 rounded-md p-2 text-black focus:ring-[#2E72D2] focus:border-[#2E72D2] focus:outline-none"
                       value={form.role_id}
                       onChange={(e) => setForm({ ...form, role_id: e.target.value })}
                     >
@@ -485,15 +472,15 @@ export default function UserManagementPage() {
                 <div className="grid grid-cols-1 gap-4 mt-3">
                   <div>
                     <Label htmlFor="username" className="text-black">ຊື່ຜູ້ໃຊ້</Label>
-                    <Input id="username" placeholder="ປ້ອນຊື່ຜູ້ໃຊ້.." value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="text-black placeholder:text-gray-500" />
+                    <Input id="username" placeholder="ປ້ອນຊື່ຜູ້ໃຊ້.." value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                   <div>
                     <Label htmlFor="password" className="text-black">ລະຫັດ</Label>
-                    <Input id="password" type="password" placeholder="ປ້ອນລະຫັດ.." value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="text-black placeholder:text-gray-500" />
+                    <Input id="password" type="password" placeholder="ປ້ອນລະຫັດ.." value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                   <div>
                     <Label htmlFor="confirm" className="text-black">ຢືນຢັນລະຫັດ</Label>
-                    <Input id="confirm" type="password" placeholder="ຢືນຢັນລະຫັດ.." value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} className="text-black placeholder:text-gray-500" />
+                    <Input id="confirm" type="password" placeholder="ຢືນຢັນລະຫັດ.." value={form.confirmPassword} onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                 </div>
                 <DialogFooter>

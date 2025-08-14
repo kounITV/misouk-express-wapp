@@ -12,5 +12,6 @@ export * from "./switch";
 export * from "./select";
 export * from "./dialog";
 export * from "./dropdown-menu";
+export * from "./logout-button";
 export * from "./pagination";
 export * from "./radio-group";
