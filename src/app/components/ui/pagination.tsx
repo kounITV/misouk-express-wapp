@@ -95,7 +95,7 @@ export const Pagination: React.FC<PaginationProps> = ({
         <select
           value={itemsPerPage}
           onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
-          className="border-2 border-gray-400 rounded px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0c64b0] focus:border-[#0c64b0] bg-white"
+          className="border-2 border-gray-400 rounded px-3 py-2 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#0c64b0] focus:border-[#0c64b0] bg-white cursor-pointer"
         >
           {itemsPerPageOptions.map((option) => (
             <option key={option} value={option}>

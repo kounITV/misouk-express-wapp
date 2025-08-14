@@ -74,7 +74,7 @@ const ActionsDropdown: React.FC<ActionsDropdownProps> = ({
           variant="ghost" 
           size="sm"
           className={cn(
-            "h-8 w-8 p-0 hover:bg-gray-100 focus:bg-gray-100",
+            "h-8 w-8 p-0 hover:bg-gray-100 focus:bg-gray-100 cursor-pointer",
             triggerClassName
           )}
         >

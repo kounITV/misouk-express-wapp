@@ -25,7 +25,7 @@ const RadioGroupItem = React.forwardRef<
     <input
       type="radio"
       className={cn(
-        "h-4 w-4 border border-gray-300 text-blue-600 focus:ring-blue-500",
+        "h-4 w-4 border border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer",
         className
       )}
       ref={ref}

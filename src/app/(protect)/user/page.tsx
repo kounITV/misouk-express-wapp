@@ -163,6 +163,9 @@ export default function UserManagementPage() {
       if (!token) throw new Error("No token");
       
       const url = `${apiEndpoints.users}?page=${page}&limit=${limit}`;
+      console.log('Fetching users from:', url);
+      console.log('Using token:', token ? 'Token exists' : 'No token');
+      
       const res = await fetch(url, {
         method: 'GET',
         headers: {
@@ -173,12 +176,26 @@ export default function UserManagementPage() {
         credentials: 'omit',
       });
       
+      console.log('Response status:', res.status);
+      console.log('Response headers:', res.headers);
+      
       if (!res.ok) {
-        throw new Error(`Fetch users failed: ${res.status}`);
+        const errorText = await res.text();
+        console.error(`Fetch users failed: ${res.status}`, errorText);
+        throw new Error(`Fetch users failed: ${res.status} - ${errorText.substring(0, 100)}`);
       }
       
-      const data: PagedResponse<ApiUser> = await res.json();
-      console.log(`GET /users page ${page} raw:`, data);
+      const responseText = await res.text();
+      console.log('Raw response:', responseText.substring(0, 200));
+      
+      // Check if response is HTML (DOCTYPE)
+      if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+        console.error('Received HTML instead of JSON:', responseText.substring(0, 200));
+        throw new Error('Server returned HTML instead of JSON. Check API endpoint and authentication.');
+      }
+      
+      const data: PagedResponse<ApiUser> = JSON.parse(responseText);
+      console.log(`GET /users page ${page} parsed:`, data);
       
       const incoming = (data.data ?? data.result ?? []) as ApiUser[];
       const normalized: User[] = incoming.map((u) => ({
@@ -209,6 +226,9 @@ export default function UserManagementPage() {
     try {
       const token = AuthService.getStoredToken();
       if (!token) return;
+      
+      console.log('Fetching roles from:', apiEndpoints.roles);
+      
       const res = await fetch(apiEndpoints.roles, {
         method: 'GET',
         headers: {
@@ -218,14 +238,30 @@ export default function UserManagementPage() {
         mode: 'cors',
         credentials: 'omit',
       });
-      if (res.ok) {
-        const response: RoleResponse = await res.json();
-        console.log('GET /roles raw:', response);
-        const list: ApiRole[] = response.data ?? [];
-        setRoles(list.map((r) => ({ id: r.id ?? r._id ?? "", name: r.name })));
+      
+      console.log('Roles response status:', res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error(`Fetch roles failed: ${res.status}`, errorText);
+        return;
       }
+      
+      const responseText = await res.text();
+      console.log('Roles raw response:', responseText.substring(0, 200));
+      
+      // Check if response is HTML
+      if (responseText.trim().startsWith('<!DOCTYPE') || responseText.trim().startsWith('<html')) {
+        console.error('Received HTML instead of JSON for roles:', responseText.substring(0, 200));
+        return;
+      }
+      
+      const response: RoleResponse = JSON.parse(responseText);
+      console.log('GET /roles parsed:', response);
+      const list: ApiRole[] = response.data ?? [];
+      setRoles(list.map((r) => ({ id: r.id ?? r._id ?? "", name: r.name })));
     } catch (e) {
-      console.error(e);
+      console.error('Error fetching roles:', e);
     }
   };
 
@@ -452,6 +488,17 @@ export default function UserManagementPage() {
   };
 
   useEffect(() => {
+    console.log('=== User Management Page Mounted ===');
+    console.log('API Base URL:', 'https://misouk-api.jackkaphon.com/api/v1');
+    console.log('Users endpoint:', `https://misouk-api.jackkaphon.com/api/v1/users`);
+    console.log('Roles endpoint:', `https://misouk-api.jackkaphon.com/api/v1/roles`);
+    
+    const token = AuthService.getStoredToken();
+    console.log('Token available:', !!token);
+    if (token) {
+      console.log('Token preview:', token.substring(0, 20) + '...');
+    }
+    
     fetchUsers();
     fetchRoles();
   }, []);
