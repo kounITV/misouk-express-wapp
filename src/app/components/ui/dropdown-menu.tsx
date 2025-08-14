@@ -74,7 +74,11 @@ const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({
 }) => {
   const { open, setOpen } = React.useContext(DropdownMenuContext)
   const ref = React.useRef<HTMLDivElement>(null)
-  const [position, setPosition] = React.useState<'bottom' | 'top'>('bottom')
+  const [position, setPosition] = React.useState<{ top: number; left: number; showAbove: boolean }>({ 
+    top: 0, 
+    left: 0, 
+    showAbove: false 
+  })
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -94,44 +98,56 @@ const DropdownMenuContent: React.FC<DropdownMenuContentProps> = ({
 
   React.useEffect(() => {
     if (open && ref.current) {
-      const rect = ref.current.parentElement?.getBoundingClientRect()
-      if (!rect) return
+      const triggerElement = ref.current.parentElement?.querySelector('button')
+      if (!triggerElement) return
       
+      const rect = triggerElement.getBoundingClientRect()
       const viewportHeight = window.innerHeight
+      const viewportWidth = window.innerWidth
       const spaceBelow = viewportHeight - rect.bottom
-      const menuHeight = 100 // Approximate menu height
+      const spaceAbove = rect.top
+      const menuHeight = 80 // Approximate menu height for 2 items
+      const menuWidth = 128 // 8rem = 128px
       
-      if (spaceBelow < menuHeight && rect.top > menuHeight) {
-        setPosition('top')
-      } else {
-        setPosition('bottom')
+      // Determine vertical position
+      const showAbove = spaceBelow < menuHeight && spaceAbove > menuHeight
+      
+      // Calculate top position
+      let top = showAbove ? rect.top - menuHeight - 8 : rect.bottom + 8
+      
+      // Calculate left position based on align prop
+      let left = rect.left
+      if (align === 'end') {
+        left = rect.right - menuWidth
+      } else if (align === 'center') {
+        left = rect.left + (rect.width / 2) - (menuWidth / 2)
       }
+      
+      // Ensure dropdown doesn't go off screen horizontally
+      if (left < 8) left = 8
+      if (left + menuWidth > viewportWidth - 8) left = viewportWidth - menuWidth - 8
+      
+      // Ensure dropdown doesn't go off screen vertically
+      if (top < 8) top = 8
+      if (top + menuHeight > viewportHeight - 8) top = viewportHeight - menuHeight - 8
+      
+      setPosition({ top, left, showAbove })
     }
-  }, [open])
+  }, [open, align])
 
   if (!open) return null
-
-  const alignmentClasses = {
-    start: "left-0",
-    center: "left-1/2 transform -translate-x-1/2",
-    end: "right-0"
-  }
-
-  const positionClasses = position === 'top' 
-    ? "bottom-full mb-1" 
-    : "top-full mt-1"
 
   return (
     <div
       ref={ref}
       className={cn(
-        "absolute z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 shadow-lg",
-        positionClasses,
-        alignmentClasses[align],
+        "fixed z-[9999] min-w-[8rem] overflow-hidden rounded-md border bg-white p-1 shadow-lg",
         className
       )}
       style={{
-        maxHeight: '200px',
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        maxHeight: 'fit-content',
         overflow: 'visible'
       }}
     >

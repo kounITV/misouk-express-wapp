@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { LogOut } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from './button';
 import {
   Dialog,
@@ -21,18 +22,26 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({
   className = "" 
 }) => {
   const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogoutClick = () => {
     setShowConfirm(true);
   };
 
-  const handleConfirmLogout = () => {
-    setShowConfirm(false);
-    onLogout();
+  const handleConfirmLogout = async () => {
+    setLoading(true);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading
+      onLogout();
+      setShowConfirm(false);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
     setShowConfirm(false);
+    setLoading(false);
   };
 
   return (
@@ -55,23 +64,41 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({
       {/* Confirmation Dialog */}
       <Dialog open={showConfirm} onOpenChange={setShowConfirm}>
         <DialogContent className="max-w-sm bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-center">ຢືນຢັນການອອກຈາກລະບົບ</DialogTitle>
-          </DialogHeader>
-          <div className="text-center py-4">
-            <p className="text-gray-600">ທ່ານຕ້ອງການອອກຈາກລະບົບແທ້ບໍ່?</p>
+          <div className="text-center py-6">
+            <p className="text-gray-800 text-lg font-medium mb-6">ທ່ານຕ້ອງການອອກຈາກລະບົບແທ້ບໍ່?</p>
+            <div className="flex justify-center mb-6">
+              <Image 
+                src="/confrim.png" 
+                alt="Confirmation" 
+                width={120} 
+                height={120}
+                className="object-contain"
+              />
+            </div>
+            <div className="flex justify-center space-x-4">
+              <Button 
+                onClick={handleCancel}
+                disabled={loading}
+                className="bg-[#F6FAFF] text-[#247DC9] border border-[#247DC9] hover:bg-[#E8F4FF] px-6 py-2 disabled:opacity-50"
+              >
+                ຍົກເລີກ
+              </Button>
+              <Button 
+                onClick={handleConfirmLogout}
+                disabled={loading}
+                className="bg-[#247DC9] text-[#FFFFFF] hover:bg-[#1e6bb8] px-6 py-2 disabled:opacity-75 min-w-[80px]"
+              >
+                {loading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>ກຳລັງອອກ...</span>
+                  </div>
+                ) : (
+                  'ຕົກລົງ'
+                )}
+              </Button>
+            </div>
           </div>
-          <DialogFooter className="flex justify-center space-x-4">
-            <Button variant="outline" onClick={handleCancel} className="text-black border-gray-300 hover:bg-gray-50">
-              ຍົກເລີກ
-            </Button>
-            <Button 
-              onClick={handleConfirmLogout}
-              className="bg-red-500 hover:bg-red-600 text-white"
-            >
-              ຕົກລົງ
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
