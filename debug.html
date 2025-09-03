@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - MISOUK EXPRESS</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .debug-card {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { border-left: 4px solid #10b981; }
+        .error { border-left: 4px solid #ef4444; }
+        .warning { border-left: 4px solid #f59e0b; }
+        .info { border-left: 4px solid #3b82f6; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #0c64b0;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #247dc9;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 MISOUK EXPRESS - Debug Tool</h1>
+    
+    <div class="debug-card info">
+        <h3>Current Status</h3>
+        <p>This debug page will help identify why you're seeing a white screen.</p>
+        <button onclick="runDiagnostics()">Run Diagnostics</button>
+        <button onclick="testAPI()">Test API Connection</button>
+        <button onclick="checkLocalStorage()">Check Local Storage</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+        function addResult(title, content, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `debug-card ${type}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            results.appendChild(div);
+        }
+
+        function runDiagnostics() {
+            document.getElementById('results').innerHTML = '';
+            
+            // Check current URL and port
+            addResult('Current Location', 
+                `URL: ${window.location.href}\nPort: ${window.location.port}\nProtocol: ${window.location.protocol}`, 
+                'info');
+
+            // Check if JavaScript is working
+            addResult('JavaScript Status', 'JavaScript is working correctly! ✅', 'success');
+
+            // Check localStorage
+            try {
+                const token = localStorage.getItem('token');
+                const user = localStorage.getItem('user');
+                addResult('Local Storage', 
+                    `Token: ${token ? 'Found' : 'Not found'}\nUser: ${user ? 'Found' : 'Not found'}`, 
+                    token && user ? 'success' : 'warning');
+            } catch (e) {
+                addResult('Local Storage', `Error: ${e.message}`, 'error');
+            }
+
+            // Check sessionStorage
+            try {
+                const sessionToken = sessionStorage.getItem('token');
+                const sessionUser = sessionStorage.getItem('user');
+                addResult('Session Storage', 
+                    `Token: ${sessionToken ? 'Found' : 'Not found'}\nUser: ${sessionUser ? 'Found' : 'Not found'}`, 
+                    'info');
+            } catch (e) {
+                addResult('Session Storage', `Error: ${e.message}`, 'error');
+            }
+
+            // Check cookies
+            addResult('Cookies', document.cookie || 'No cookies found', 'info');
+
+            // Check console errors
+            const originalError = console.error;
+            const errors = [];
+            console.error = function(...args) {
+                errors.push(args.join(' '));
+                originalError.apply(console, arguments);
+            };
+            
+            setTimeout(() => {
+                addResult('Console Errors', 
+                    errors.length > 0 ? errors.join('\n') : 'No errors detected', 
+                    errors.length > 0 ? 'error' : 'success');
+            }, 1000);
+        }
+
+        async function testAPI() {
+            const apiUrl = 'https://misouk-api.jackkaphon.com/api/v1';
+            
+            try {
+                addResult('API Test - Starting', `Testing connection to: ${apiUrl}`, 'info');
+                
+                const response = await fetch(`${apiUrl}/auth/validate`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                addResult('API Test - Response', 
+                    `Status: ${response.status}\nStatus Text: ${response.statusText}\nOK: ${response.ok}`, 
+                    response.ok ? 'success' : 'warning');
+                    
+            } catch (error) {
+                addResult('API Test - Error', `Error: ${error.message}`, 'error');
+            }
+        }
+
+        function checkLocalStorage() {
+            try {
+                const keys = Object.keys(localStorage);
+                const data = {};
+                keys.forEach(key => {
+                    data[key] = localStorage.getItem(key);
+                });
+                
+                addResult('All Local Storage Data', 
+                    keys.length > 0 ? JSON.stringify(data, null, 2) : 'Local storage is empty', 
+                    'info');
+            } catch (e) {
+                addResult('Local Storage Check', `Error: ${e.message}`, 'error');
+            }
+        }
+
+        // Auto-run diagnostics on page load
+        window.onload = function() {
+            runDiagnostics();
+        };
+    </script>
+</body>
+</html>

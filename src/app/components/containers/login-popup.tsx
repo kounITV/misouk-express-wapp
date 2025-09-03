@@ -55,8 +55,8 @@ export function LoginPopup({ open, onOpenChange }: LoginPopupProps) {
         // Close dialog on successful login
         onOpenChange(false);
         
-        // Redirect to user management page
-        AuthService.redirectToUserManagement();
+        // Redirect based on user role
+        AuthService.redirectBasedOnRole((result.data.user as any)?.role || 'super_admin');
       } else if (result && result.data && result.data.token) {
         // Alternative API structure - direct token/user
         AuthService.storeAuth(result.data.token, result.data.user || { username: data.username });
@@ -64,8 +64,8 @@ export function LoginPopup({ open, onOpenChange }: LoginPopupProps) {
         // Close dialog on successful login
         onOpenChange(false);
         
-        // Redirect to user management page
-        AuthService.redirectToUserManagement();
+        // Redirect based on user role
+        AuthService.redirectBasedOnRole((result.data.user as any)?.role || 'super_admin');
       } else {
         // Login failed - show error and keep dialog open
         form.setError("root", { 

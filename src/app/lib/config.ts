@@ -16,4 +16,9 @@ export const apiEndpoints = {
   // Users endpoints
   users: `${config.API_URL}/users`,
   roles: `${config.API_URL}/roles`,
+  // Products endpoints
+  products: `${config.API_URL}/products`,
+  // Orders endpoints
+  orders: `${config.API_URL}/orders`,
+  ordersBulk: `${config.API_URL}/orders/bulk`,
 };

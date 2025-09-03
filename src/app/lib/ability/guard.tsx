@@ -1,7 +1,7 @@
-/* eslint-disable max-nested-callbacks */
-/* eslint-disable no-magic-numbers */
-/* eslint-disable max-statements-per-line */
-/* eslint-disable complexity */
+ 
+ 
+ 
+ 
 "use client";
 
 import { Loader2 } from "lucide-react";

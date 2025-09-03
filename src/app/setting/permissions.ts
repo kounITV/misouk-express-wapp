@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+ 
 import { type Actions, type Role, type Subjects } from "./interface";
 
 export const rolePermissions: Record<Role, Array<{ action: Actions; subject: Subjects | Subjects[] }>> = {
@@ -11,6 +11,9 @@ export const rolePermissions: Record<Role, Array<{ action: Actions; subject: Sub
     { action: "read", subject: "role" },
     { action: "read", subject: "permission" },
     { action: "manage", subject: "order" },
+    { action: "create", subject: "product" },
+    { action: "read", subject: "product" },
+    { action: "update", subject: "product" },
   ],
 
   thai_admin: [

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention */
+ 
 import axios, { type AxiosInstance, type AxiosRequestConfig } from "axios";
 
 interface ApiClientConfig {

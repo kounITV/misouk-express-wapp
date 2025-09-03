@@ -140,8 +140,8 @@ type Toast = ToasterToast;
 export const dismiss = (id: string) =>
 { dispatch({ type: "DISMISS_TOAST", toastId: id }); };
 
-function toast({ ...props }: Toast) {
-  const id = props.id + "_" + genId();
+function toast({ ...props }: Omit<Toast, 'id'> & { id?: string }) {
+  const id = (props.id || genId()) + "_" + genId();
 
   const update = (props: ToasterToast) =>
   { dispatch({

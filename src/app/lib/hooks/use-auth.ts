@@ -8,6 +8,7 @@ interface UseAuthReturn {
   token: string | null;
   isLoading: boolean;
   isMounted: boolean;
+  tokenExpired: boolean;
 }
 
 export function useAuth(): UseAuthReturn {
@@ -15,6 +16,7 @@ export function useAuth(): UseAuthReturn {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+  const [tokenExpired, setTokenExpired] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -26,8 +28,20 @@ export function useAuth(): UseAuthReturn {
     setIsLoading(true);
     
     try {
+      // First, try to restore session from cookies if needed
+      const restored = AuthService.restoreSessionFromCookies();
+      console.log('Session restore from cookies:', restored ? 'Success' : 'Not needed/Failed');
+      
+      // Check if token expired flag is set
+      const expired = AuthService.getTokenExpiredFlag();
+      setTokenExpired(expired);
+      
       const storedUser = AuthService.getStoredUser();
       const storedToken = AuthService.getStoredToken();
+      
+      console.log('Auth check - Token:', storedToken ? 'Found' : 'Not found');
+      console.log('Auth check - User:', storedUser ? 'Found' : 'Not found');
+      console.log('Auth check - Token Expired Flag:', expired);
       
       setUser(storedUser);
       setToken(storedToken);
@@ -35,6 +49,7 @@ export function useAuth(): UseAuthReturn {
       console.error('Error loading auth state:', error);
       setUser(null);
       setToken(null);
+      setTokenExpired(false);
     } finally {
       setIsLoading(false);
     }
@@ -45,5 +60,6 @@ export function useAuth(): UseAuthReturn {
     token,
     isLoading,
     isMounted,
+    tokenExpired,
   };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -94,6 +95,7 @@ interface PagedResponse<T> {
 }
 
 export default function UserManagementPage() {
+  const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [openCreate, setOpenCreate] = useState<boolean>(false);
@@ -122,6 +124,7 @@ export default function UserManagementPage() {
   });
   const [roles, setRoles] = useState<Array<{ id: string; name: string }>>([]);
   const [usernameExists, setUsernameExists] = useState<boolean>(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
 
   const { user: currentUser, isMounted } = useAuth();
 
@@ -509,27 +512,44 @@ export default function UserManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      {/* Sidebar */}
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
+      {/* Responsive Sidebar */}
       <SidebarMenu
         currentUserRole={currentUser?.role ? (typeof currentUser.role === 'string' ? currentUser.role : currentUser.role.name) : 'super_admin'}
         currentPath="/user"
         onMenuClick={(href) => {
-          // Handle navigation
-          console.log('Navigate to:', href);
+          router.push(href);
         }}
-        onCollapseChange={(collapsed) => {
-          setSidebarCollapsed(collapsed);
+        onCollapseChange={() => {
+          // Handle sidebar collapse if needed
         }}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onMobileMenuToggle={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${isMobileMenuOpen ? 'lg:ml-0 ml-64' : 'ml-0'}`}>
         {/* Header */}
-        <header className="bg-[#0c64b0] text-white px-6 py-4 flex justify-end items-center">
-          <Image src="/logo-01.png" alt="MISOUK EXPRESS" width={120} height={40} className="h-8 w-auto absolute left-20" />
-          <div className="flex items-center gap-4">
-            <div className="text-white text-sm">
+        <header className="bg-[#0c64b0] text-white px-4 md:px-6 py-4 flex justify-between lg:justify-end items-center">
+          {/* Mobile Menu Button */}
+          <div className="lg:hidden">
+            <button 
+              className="text-white p-2" 
+              aria-label="Menu"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+          </div>
+          
+          {/* Desktop Logo - Positioned absolutely, only visible on large screens */}
+          <Image src="/logo-01.png" alt="MISOUK EXPRESS" width={120} height={40} className="hidden lg:block h-8 w-auto absolute left-20" />
+          
+          {/* User info and logout - Only visible on large screens (desktop) */}
+          <div className="hidden lg:flex items-center gap-2 md:gap-4">
+            <div className="text-white text-xs md:text-sm">
               <div className="font-medium">{isMounted && currentUser ? currentUser.username : 'Super Admin'}</div>
               {isMounted && currentUser && currentUser.role && (
                 <div className="text-xs text-blue-200">{getRoleName(currentUser.role)}</div>
@@ -544,7 +564,7 @@ export default function UserManagementPage() {
           <div className="max-w-7xl mx-auto">
             {/* Page Title and Add Button */}
             <div className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-semibold text-gray-800">ຈັດການຜູ້ມີໃຫ້ລະບົບ</h1>
+              <h1 className="text-2xl font-semibold text-gray-800">ຈັດການຜູ້ນຳໃຊ້ລະບົບ</h1>
               <Button className="bg-[#0c64b0] hover:bg-[#247dc9] text-white" onClick={() => setOpenCreate(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 ເພີ່ມຜູ້ໃຊ້
@@ -553,7 +573,7 @@ export default function UserManagementPage() {
 
             {/* User Table */}
             <Card className="bg-white shadow-sm">
-              <CardHeader className="border-b border-gray-200">
+              {/* <CardHeader className="border-b border-gray-200">
                 <div className="flex justify-between items-center">
                   <CardTitle className="text-lg font-medium text-gray-800">ລາຍການຜູ້ໃຊ້ງານ</CardTitle>
                   {loading && (
@@ -568,7 +588,7 @@ export default function UserManagementPage() {
                     </div>
                   )}
                 </div>
-              </CardHeader>
+              </CardHeader> */}
               <CardContent className="p-6">
                 <div className="overflow-x-auto relative">
                    <table className="w-full">

@@ -99,10 +99,48 @@ export class AuthService {
     }
   }
 
+  static getCookieValue(name: string): string | null {
+    if (typeof window === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      const cookieValue = parts.pop()?.split(';').shift();
+      return cookieValue ? decodeURIComponent(cookieValue) : null;
+    }
+    return null;
+  }
+
   static getStoredToken(): string | null {
     if (typeof window === 'undefined') return null;
     try {
-      return localStorage.getItem('authToken');
+      // Check sessionStorage first (for current session)
+      const sessionToken = sessionStorage.getItem('authToken');
+      if (sessionToken) {
+        return sessionToken;
+      }
+      
+      // Check localStorage for token expiration info
+      const tokenExpiry = localStorage.getItem('tokenExpiry');
+      if (tokenExpiry) {
+        const expiryTime = new Date(tokenExpiry);
+        const currentTime = new Date();
+        
+        if (currentTime > expiryTime) {
+          // Token has expired, clear everything and show message
+          this.clearAuth();
+          this.setTokenExpiredFlag();
+          return null;
+        }
+      }
+      
+      // Check localStorage
+      const localToken = localStorage.getItem('authToken');
+      if (localToken) {
+        return localToken;
+      }
+      
+      // Finally, check cookies as fallback
+      return this.getCookieValue('authToken');
     } catch {
       return null;
     }
@@ -111,18 +149,70 @@ export class AuthService {
   static getStoredUser(): any | null {
     if (typeof window === 'undefined') return null;
     try {
+      // Check sessionStorage first
+      const sessionUser = sessionStorage.getItem('user');
+      if (sessionUser) {
+        return JSON.parse(sessionUser);
+      }
+      
+      // Check localStorage
       const userData = localStorage.getItem('user');
-      return userData ? JSON.parse(userData) : null;
+      if (userData) {
+        return JSON.parse(userData);
+      }
+      
+      // Finally, check cookies as fallback
+      const cookieUser = this.getCookieValue('user');
+      return cookieUser ? JSON.parse(cookieUser) : null;
     } catch {
       return null;
     }
   }
 
-  static storeAuth(token: string, user: any): void {
+  static storeAuth(token: string, user: any, rememberMe: boolean = true): void {
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('user', JSON.stringify(user));
+      console.log('Storing auth data...');
+      console.log('Token to store:', token);
+      console.log('User to store:', user);
+      console.log('Remember me:', rememberMe);
+      
+      if (rememberMe) {
+        // Store in localStorage with expiration (30 days for persistent login)
+        const expiryTime = new Date();
+        expiryTime.setDate(expiryTime.getDate() + 30);
+        
+        localStorage.setItem('authToken', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('tokenExpiry', expiryTime.toISOString());
+        
+        // Also set session storage for immediate access
+        sessionStorage.setItem('authToken', token);
+        sessionStorage.setItem('user', JSON.stringify(user));
+        
+        // Set a cookie for additional persistence
+        const cookieExpiry = new Date();
+        cookieExpiry.setDate(cookieExpiry.getDate() + 30);
+        document.cookie = `authToken=${token}; expires=${cookieExpiry.toUTCString()}; path=/; SameSite=Lax`;
+        document.cookie = `user=${encodeURIComponent(JSON.stringify(user))}; expires=${cookieExpiry.toUTCString()}; path=/; SameSite=Lax`;
+      } else {
+        // Store in sessionStorage only (expires when browser closes)
+        sessionStorage.setItem('authToken', token);
+        sessionStorage.setItem('user', JSON.stringify(user));
+        
+        // Clear any existing localStorage auth data
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('user');
+        localStorage.removeItem('tokenExpiry');
+        
+        // Clear cookies
+        document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+        document.cookie = 'user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      }
+      
+      // Clear token expired flag
+      localStorage.removeItem('tokenExpired');
+      
     } catch (error) {
       console.error('Failed to store auth data:', error);
     }
@@ -131,10 +221,98 @@ export class AuthService {
   static clearAuth(): void {
     if (typeof window === 'undefined') return;
     try {
+      // Clear both localStorage and sessionStorage
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
+      localStorage.removeItem('tokenExpiry');
+      sessionStorage.removeItem('authToken');
+      sessionStorage.removeItem('user');
+      
+      // Clear cookies
+      document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      document.cookie = 'user=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     } catch (error) {
       console.error('Failed to clear auth data:', error);
+    }
+  }
+
+  static setTokenExpiredFlag(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('tokenExpired', 'true');
+    } catch (error) {
+      console.error('Failed to set token expired flag:', error);
+    }
+  }
+
+  static getTokenExpiredFlag(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+      return localStorage.getItem('tokenExpired') === 'true';
+    } catch {
+      return false;
+    }
+  }
+
+  static clearTokenExpiredFlag(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.removeItem('tokenExpired');
+    } catch (error) {
+      console.error('Failed to clear token expired flag:', error);
+    }
+  }
+
+  static restoreSessionFromCookies(): boolean {
+    if (typeof window === 'undefined') return false;
+    
+    try {
+      // Check if we already have session data
+      const sessionToken = sessionStorage.getItem('authToken');
+      const localToken = localStorage.getItem('authToken');
+      
+      if (sessionToken || localToken) {
+        return true; // Already have session data
+      }
+      
+      // Try to restore from cookies
+      const cookieToken = this.getCookieValue('authToken');
+      const cookieUserString = this.getCookieValue('user');
+      
+      if (cookieToken && cookieUserString) {
+        console.log('Restoring session from cookies...');
+        
+        try {
+          const cookieUser = JSON.parse(cookieUserString);
+          
+          // Check if localStorage already has the same data
+          const localToken = localStorage.getItem('authToken');
+          if (!localToken) {
+            // Restore to localStorage with extended expiration
+            const expiryTime = new Date();
+            expiryTime.setDate(expiryTime.getDate() + 30);
+            
+            localStorage.setItem('authToken', cookieToken);
+            localStorage.setItem('user', JSON.stringify(cookieUser));
+            localStorage.setItem('tokenExpiry', expiryTime.toISOString());
+          }
+          
+          // Also set in sessionStorage for immediate access
+          sessionStorage.setItem('authToken', cookieToken);
+          sessionStorage.setItem('user', JSON.stringify(cookieUser));
+          
+          console.log('Session restored from cookies successfully');
+          return true;
+        } catch (parseError) {
+          console.error('Failed to parse user data from cookies:', parseError);
+          return false;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Failed to restore session from cookies:', error);
+      return false;
     }
   }
 
@@ -187,13 +365,36 @@ export class AuthService {
 
   static redirectToHome(): void {
     if (typeof window !== 'undefined') {
-      window.location.href = '/';
+      console.log('AuthService - Redirecting to home page');
+      window.location.href = '/home';
     }
   }
 
   static redirectToUserManagement(): void {
     if (typeof window !== 'undefined') {
       window.location.href = '/user';
+    }
+  }
+
+  static redirectToProductManagement(): void {
+    if (typeof window !== 'undefined') {
+      window.location.href = '/product';
+    }
+  }
+
+  static redirectBasedOnRole(userRole: string): void {
+    if (typeof window !== 'undefined') {
+      const roleName = typeof userRole === 'string' ? userRole : (userRole as any)?.name || '';
+      
+      switch (roleName) {
+        case 'super_admin':
+        case 'thai_admin':
+        case 'lao_admin':
+          window.location.href = '/product';
+          break;
+        default:
+          window.location.href = '/product';
+      }
     }
   }
 }
