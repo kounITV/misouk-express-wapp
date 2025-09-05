@@ -248,18 +248,26 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         return;
       }
 
-      // Prepare the bulk update data
+      // Prepare the bulk update data based on user role
       const updateData = {
-        orders: selectedProducts.map(product => ({
-          id: product.id,
-          tracking_number: product.tracking_number,
-          client_name: product.client_name,
-          client_phone: product.client_phone,
-          amount: product.amount || 0,
-          currency: product.currency,
-          status: formData.newStatus,
-          is_paid: formData.isPaid
-        }))
+        orders: selectedProducts.map(product => {
+          const orderUpdate: any = {
+            id: product.id,
+            tracking_number: product.tracking_number,
+            client_name: product.client_name,
+            client_phone: product.client_phone,
+            status: formData.newStatus
+          };
+
+          // Only include amount, currency, and is_paid for non-thai_admin roles
+          if (userRole !== 'thai_admin') {
+            orderUpdate.amount = product.amount || 0;
+            orderUpdate.currency = product.currency;
+            orderUpdate.is_paid = formData.isPaid;
+          }
+
+          return orderUpdate;
+        })
       };
 
       console.log('Updating products with data:', updateData);

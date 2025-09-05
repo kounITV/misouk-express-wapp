@@ -201,25 +201,31 @@ const ProductDialog = memo(({
     setIsApproving(true);
 
     try {
-      // Prepare orders data in the required format
+      // Prepare orders data in the required format based on user role
       const ordersData = {
         orders: dialogProducts.map(product => {
-          // Validate amount - database has precision 10, scale 2 (max 99,999,999.99)
-          const amount = product.amount || 0;
-          if (amount > 99999999.99) {
-            throw new Error(`ລາຄາສູງເກີນໄປ: ${amount}. ລາຄາສູງສຸດຄວນເປັນ 99,999,999.99`);
-          }
-          
-          return {
+          const orderData: any = {
             id: crypto.randomUUID(), // Add required UUID
             tracking_number: product.tracking_number,
             client_name: product.client_name,
             client_phone: product.client_phone,
-            amount: amount, // Send as number, not string
-            currency: product.currency,
-            status: product.status,
-            is_paid: false
+            status: product.status
           };
+
+          // Only include amount, currency, and is_paid for non-thai_admin roles
+          if (userRole !== 'thai_admin') {
+            // Validate amount - database has precision 10, scale 2 (max 99,999,999.99)
+            const amount = product.amount || 0;
+            if (amount > 99999999.99) {
+              throw new Error(`ລາຄາສູງເກີນໄປ: ${amount}. ລາຄາສູງສຸດຄວນເປັນ 99,999,999.99`);
+            }
+            
+            orderData.amount = amount; // Send as number, not string
+            orderData.currency = product.currency;
+            orderData.is_paid = false;
+          }
+          
+          return orderData;
         })
       };
 

@@ -25,6 +25,70 @@ import { apiEndpoints } from "@/lib/config";
 import { getRolePermissions, normalizeRole } from "@/lib/utils/role-permissions";
 import { createOrder, CreateOrderData } from "@/lib/api/orders";
 
+// Helper function to get user-friendly error messages
+const getUserFriendlyErrorMessage = (error: any): string => {
+  // Handle API response errors
+  if (error && typeof error === 'object') {
+    // Handle specific API error messages
+    if (error.message) {
+      // Status restriction error for Thai Admin
+      if (error.message.includes('ສະຖານະທີ່ອະນຸຍາດມີແຕ່ EXIT_THAI_BRANCH ເທົ່ານັ້ນ')) {
+        return 'ກະລຸນາເລືອກສະຖານະ';
+      }
+      
+      // Amount validation error
+      if (error.message.includes('Validation failed') || error.message.includes('ລາຄາຕ້ອງບໍ່ຕິດລົບ')) {
+        return 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
+      }
+      
+      // Permission denied errors
+      if (error.message.includes('ບໍ່ສາມາດແກ້ໄຂຈຳນວນເງິນ, ສະກຸນເງິນ ຫຼື ສະຖານະການຈ່າຍເງິນ')) {
+        return 'ກະລຸນາເລືອກສະຖານະ';
+      }
+      
+      // Access denied error
+      if (error.message.includes('ບໍ່ມີສິດໃນການເຂົ້າເຖິງ')) {
+        return 'ເກີດຂໍ້ຜິດພາດບໍ່ສາມາດສ້າງລາຍການໄດ້';
+      }
+      
+      // Cannot edit items that have already left Thai branch
+      if (error.message.includes('ບໍ່ສາມາດແກ້ໄຂລາຍການທີ່ອອກຈາກສາຂາໄທແລ້ວ')) {
+        return 'ກະລຸນາເລືອກສາຖານະເພື່ອອັບເດດ';
+      }
+      
+      
+      return error.message;
+    }
+    
+    // Handle error arrays
+    if (error.error && Array.isArray(error.error) && error.error.length > 0) {
+      const firstError = error.error[0];
+      if (firstError.message) {
+        if (firstError.message.includes('ສະຖານະທີ່ອະນຸຍາດມີແຕ່ EXIT_THAI_BRANCH ເທົ່ານັ້ນ')) {
+          return 'ກະລຸນາເລືອກສະຖານະ EXIT_THAI_BRANCH';
+        }
+        if (firstError.message.includes('ລາຄາຕ້ອງບໍ່ຕິດລົບ')) {
+          return 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
+        }
+        return firstError.message;
+      }
+    }
+  }
+  
+  // Handle string errors
+  if (typeof error === 'string') {
+    if (error.includes('API Error: 403')) {
+      return 'ກະລຸນາເລືອກສະຖານະ';
+    }
+    if (error.includes('Validation failed')) {
+      return 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
+    }
+    return error;
+  }
+  
+  return 'ເກີດຂໍ້ຜິດພາດ ກະລຸນາລອງໃໝ່ອີກຄັ້ງ';
+};
+
 // Import optimized modules
 import { PRODUCT_TEXT, LABELS, PLACEHOLDERS, BUTTONS, MESSAGES, SEARCH } from "@/lib/constants/text";
 import { Product, ApiProduct, FormData, PaginationData } from "@/types/product";
@@ -233,7 +297,7 @@ export default function ProductManagementPage() {
     amount: "",
     currency: "LAK",
     serviceType: "send_money",
-    status: "AT_THAI_BRANCH",
+    status: "EXIT_THAI_BRANCH",
   });
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -389,19 +453,32 @@ export default function ProductManagementPage() {
     if (!isFormValid) return;
     setCreating(true);
     try {
-      // Prepare order data
-      const orderData: CreateOrderData = {
-        tracking_number: form.productCode,
-        client_name: form.senderName,
-        client_phone: form.senderPhone,
-        amount: userRole === 'thai_admin' ? null : (form.amount ? parseFloat(form.amount) : 0),
-        currency: userRole === 'thai_admin' ? null : (form.currency || 'LAK'),
-        status: form.status || 'AT_THAI_BRANCH',
-        is_paid: false
-      };
+      // Prepare order data based on user role
+      let orderData: CreateOrderData;
+      
+      if (userRole === 'thai_admin') {
+        // Thai Admin: Only send required fields
+        orderData = {
+          tracking_number: form.productCode,
+          client_name: form.senderName,
+          client_phone: form.senderPhone,
+          status: form.status || 'EXIT_THAI_BRANCH'
+        };
+      } else {
+        // Other admins: Send all fields
+        orderData = {
+          tracking_number: form.productCode,
+          client_name: form.senderName,
+          client_phone: form.senderPhone,
+          status: form.status || 'AT_THAI_BRANCH',
+          is_paid: false,
+          amount: form.amount ? parseFloat(form.amount) : 0,
+          currency: form.currency || 'LAK'
+        };
+      }
 
-      // Create order using the API
-      const result = await createOrder(orderData);
+      // Create order using the API (use orders array format for thai_admin)
+      const result = await createOrder(orderData, userRole === 'thai_admin');
 
       if (result.success) {
         console.log('Order created successfully:', result.data);
@@ -457,8 +534,8 @@ export default function ProductManagementPage() {
       }
     } catch (error) {
       console.error('Create order error:', error);
-      // You can add an error notification here
-      // toast.error(error instanceof Error ? error.message : 'Failed to create order');
+      const errorMessage = error instanceof Error ? getUserFriendlyErrorMessage(error.message) : 'ຜິດພາດໃນການສ້າງສິນຄ້າ';
+      alert(errorMessage);
     } finally {
       setCreating(false);
     }
@@ -626,18 +703,18 @@ export default function ProductManagementPage() {
     // If no products are selected, auto-select products with the filtered status
     if (selectedItems.size === 0 && statusFilter) {
       const filteredProducts = products.filter(product => {
-        const apiStatus = convertStatusToAPI(statusFilter);
-        return product.status === apiStatus;
+        return product.status === statusFilter;
       });
       
       if (filteredProducts.length > 0) {
         // Auto-select all products with the filtered status
         const newSelectedItems = new Set(filteredProducts.map(product => product.id));
         setSelectedItems(newSelectedItems);
-        setSelectAll(newSelectedItems.size === products.length);
+        setSelectAll(newSelectedItems.size === filteredProducts.length);
         
         // Check if all selected products have the same status
-        const allSameStatus = filteredProducts.every(product => product.status === filteredProducts[0].status);
+        const firstProduct = filteredProducts[0];
+        const allSameStatus = firstProduct && filteredProducts.every(product => product.status === firstProduct.status);
         if (allSameStatus) {
           // Open dialog with auto-selected products
           setOpenUpdateStatus(true);
@@ -702,18 +779,37 @@ export default function ProductManagementPage() {
 
   // Handle role-based create
   const handleRoleBasedCreate = useCallback(async (data: CreateOrderData) => {
-    const orderData: CreateOrderData = {
-      tracking_number: data.tracking_number,
-      client_name: data.client_name,
-      client_phone: data.client_phone,
-      amount: data.amount || 0,
-      currency: data.currency || 'LAK',
-      status: data.status || 'AT_THAI_BRANCH',
-      is_paid: false
-    };
+    let orderData: CreateOrderData;
+    
+    if (userRole === 'thai_admin') {
+      // Thai Admin: Only send required fields
+      orderData = {
+        tracking_number: data.tracking_number,
+        client_name: data.client_name,
+        client_phone: data.client_phone,
+        status: data.status || 'EXIT_THAI_BRANCH'
+      };
+    } else {
+      // Other admins: Send all fields
+      orderData = {
+        tracking_number: data.tracking_number,
+        client_name: data.client_name,
+        client_phone: data.client_phone,
+        status: data.status || 'AT_THAI_BRANCH',
+        is_paid: false
+      };
 
-    // Create order using the API
-    const result = await createOrder(orderData);
+      // Add amount/currency if provided
+      if (data.amount !== undefined && data.amount !== null) {
+        orderData.amount = data.amount;
+      }
+      if (data.currency !== undefined && data.currency !== null) {
+        orderData.currency = data.currency;
+      }
+    }
+
+    // Create order using the API (use orders array format for thai_admin)
+    const result = await createOrder(orderData, userRole === 'thai_admin');
 
     if (result.success) {
       console.log('Order created successfully:', result.data);
@@ -770,15 +866,23 @@ export default function ProductManagementPage() {
     const apiStatus = convertStatusToAPI(newStatus);
 
     // Prepare the request body with all required fields
-    const requestBody = {
+    const requestBody: any = {
       tracking_number: product.tracking_number,
       client_name: product.client_name,
       client_phone: product.client_phone,
-      amount: product.amount || 0,
-      currency: product.currency,
-      status: apiStatus, // Use converted status
-      is_paid: product.is_paid
+      status: apiStatus // Use converted status
     };
+
+    // Only include amount, currency, and is_paid based on user role permissions
+    if (userRole !== 'thai_admin' && product.amount !== null && product.amount !== undefined) {
+      requestBody.amount = product.amount;
+    }
+    if (userRole !== 'thai_admin' && product.currency !== null && product.currency !== undefined) {
+      requestBody.currency = product.currency;
+    }
+    if (userRole !== 'thai_admin' && product.is_paid !== null && product.is_paid !== undefined) {
+      requestBody.is_paid = product.is_paid;
+    }
 
     // Optimistically update the UI
     const updatedProduct = { ...product, status: newStatus };
@@ -800,7 +904,14 @@ export default function ProductManagementPage() {
       const errorText = await response.text();
       // Revert the optimistic update on error
       fetchProducts(pagination.current_page, itemsPerPage);
-      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+      
+      try {
+        const errorJson = JSON.parse(errorText);
+        const friendlyMessage = getUserFriendlyErrorMessage(errorJson);
+        throw new Error(friendlyMessage);
+      } catch (parseError) {
+        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
     }
 
     const result = await response.json();
@@ -809,7 +920,8 @@ export default function ProductManagementPage() {
     if (!result.success) {
       // Revert the optimistic update on error
       fetchProducts(pagination.current_page, itemsPerPage);
-      throw new Error(result.message || 'Failed to update status');
+      const friendlyMessage = getUserFriendlyErrorMessage(result);
+      throw new Error(friendlyMessage);
     }
   }, [pagination.current_page, itemsPerPage]);
 
@@ -826,16 +938,28 @@ export default function ProductManagementPage() {
 
       // Prepare the bulk request body
       const requestBody = {
-        orders: selectedProducts.map(product => ({
-          id: product.id,
-          tracking_number: product.tracking_number,
-          client_name: product.client_name,
-          client_phone: product.client_phone,
-          amount: product.amount || 0,
-          currency: product.currency,
-          status: apiStatus, // Use converted status
-          is_paid: product.is_paid
-        }))
+        orders: selectedProducts.map(product => {
+          const orderUpdate: any = {
+            id: product.id,
+            tracking_number: product.tracking_number,
+            client_name: product.client_name,
+            client_phone: product.client_phone,
+            status: apiStatus // Use converted status
+          };
+
+          // Only include amount, currency, and is_paid based on user role permissions
+          if (userRole !== 'thai_admin' && product.amount !== null && product.amount !== undefined) {
+            orderUpdate.amount = product.amount;
+          }
+          if (userRole !== 'thai_admin' && product.currency !== null && product.currency !== undefined) {
+            orderUpdate.currency = product.currency;
+          }
+          if (userRole !== 'thai_admin' && product.is_paid !== null && product.is_paid !== undefined) {
+            orderUpdate.is_paid = product.is_paid;
+          }
+
+          return orderUpdate;
+        })
       };
 
       // Optimistically update the UI
@@ -855,14 +979,21 @@ export default function ProductManagementPage() {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+        try {
+          const errorJson = JSON.parse(errorText);
+          const friendlyMessage = getUserFriendlyErrorMessage(errorJson);
+          throw new Error(friendlyMessage);
+        } catch (parseError) {
+          throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+        }
       }
 
       const result = await response.json();
       console.log('Bulk update result:', result);
 
       if (!result.success) {
-        throw new Error(result.message || 'Failed to bulk update status');
+        const friendlyMessage = getUserFriendlyErrorMessage(result);
+        throw new Error(friendlyMessage);
       }
 
       // Clear selections after successful update
@@ -873,7 +1004,8 @@ export default function ProductManagementPage() {
       console.error('Failed to bulk update status:', error);
       // Revert the optimistic update on error
       fetchProducts(pagination.current_page, itemsPerPage);
-      alert('ຜິດພາດໃນການອັບເດດສະຖານະຫຼາຍລາຍການ: ' + error);
+      const errorMessage = error instanceof Error ? error.message : 'ຜິດພາດໃນການອັບເດດສະຖານະ';
+      alert(errorMessage);
     }
   }, [products, pagination.current_page, itemsPerPage]);
 
@@ -886,15 +1018,23 @@ export default function ProductManagementPage() {
     const apiStatus = convertStatusToAPI(updatedProduct.status);
 
     // Prepare the request body according to the API specification
-    const requestBody = {
+    const requestBody: any = {
       tracking_number: updatedProduct.tracking_number,
       client_name: updatedProduct.client_name,
       client_phone: updatedProduct.client_phone,
-      amount: updatedProduct.amount || 0,
-      currency: updatedProduct.currency,
-      status: apiStatus, // Use converted status
-      is_paid: updatedProduct.is_paid
+      status: apiStatus // Use converted status
     };
+
+    // Only include amount, currency, and is_paid based on user role permissions
+    if (userRole !== 'thai_admin' && updatedProduct.amount !== null && updatedProduct.amount !== undefined) {
+      requestBody.amount = updatedProduct.amount;
+    }
+    if (userRole !== 'thai_admin' && updatedProduct.currency !== null && updatedProduct.currency !== undefined) {
+      requestBody.currency = updatedProduct.currency;
+    }
+    if (userRole !== 'thai_admin' && updatedProduct.is_paid !== null && updatedProduct.is_paid !== undefined) {
+      requestBody.is_paid = updatedProduct.is_paid;
+    }
 
     // Make API call to update product
     const response = await fetch(`${apiEndpoints.orders}/${updatedProduct.id}`, {
@@ -908,7 +1048,13 @@ export default function ProductManagementPage() {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+      try {
+        const errorJson = JSON.parse(errorText);
+        const friendlyMessage = getUserFriendlyErrorMessage(errorJson);
+        throw new Error(friendlyMessage);
+      } catch (parseError) {
+        throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
+      }
     }
 
     const result = await response.json();
@@ -926,7 +1072,8 @@ export default function ProductManagementPage() {
       // Refresh the data to ensure consistency
       fetchProducts(pagination.current_page, itemsPerPage);
     } else {
-      throw new Error(result.message || 'Failed to update product');
+      const friendlyMessage = getUserFriendlyErrorMessage(result);
+      throw new Error(friendlyMessage);
     }
   }, [pagination.current_page, itemsPerPage]);
 
@@ -1034,19 +1181,14 @@ export default function ProductManagementPage() {
                     >
                       <span className="hidden sm:inline">ອັບເດດສະຖານະ</span>
                       <span className="sm:hidden">ອັບເດດ</span>
-                      {selectedItems.size > 0 && (
+                      {/* {statusFilter && statusFilter.trim() !== '' && selectedItems.size === 0 && (
                         <span className="bg-white text-[#0c64b0] px-2 py-0.5 rounded-full text-xs font-medium">
-                          {selectedItems.size}
-                        </span>
-                      )}
-                      {statusFilter && statusFilter.trim() !== '' && selectedItems.size === 0 && (
-                        <span className="bg-white text-[#0c64b0] px-2 py-0.5 rounded-full text-xs font-medium">
-                          {statusFilter === 'AT_THAI_BRANCH' ? 'ຮອດໄທ' :
+                          {statusFilter === 'AT_THAI_BRANCH' :
                            statusFilter === 'EXIT_THAI_BRANCH' ? 'ອອກໄທ' :
                            statusFilter === 'AT_LAO_BRANCH' ? 'ຮອດລາວ' :
                            statusFilter === 'COMPLETED' ? 'ສຳເລັດ' : statusFilter}
                         </span>
-                      )}
+                      )} */}
                     </Button>
 
                     {permissions.canCreate && (

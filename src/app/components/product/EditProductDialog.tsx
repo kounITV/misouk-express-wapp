@@ -63,17 +63,26 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
     setSaving(true);
     try {
+      // Start with base product and only update the basic fields
       const updatedProduct: Product = {
         ...product,
         tracking_number: formData.tracking_number,
         client_name: formData.client_name,
         client_phone: formData.client_phone,
-        amount: formData.amount ? parseFloat(formData.amount) : null,
-        currency: formData.currency,
         status: formData.status,
-        is_paid: formData.is_paid,
         updated_at: new Date().toISOString()
       };
+
+      // Only include amount, currency, and is_paid if they have values (for non-thai_admin users)
+      if (formData.amount && formData.amount.trim()) {
+        updatedProduct.amount = parseFloat(formData.amount);
+      }
+      if (formData.currency && formData.currency.trim()) {
+        updatedProduct.currency = formData.currency;
+      }
+      if (formData.is_paid !== undefined) {
+        updatedProduct.is_paid = formData.is_paid;
+      }
 
       await onSave(updatedProduct);
       
@@ -97,11 +106,8 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
   const isFormValid = formData.tracking_number.trim() && 
                      formData.client_name.trim() && 
                      formData.client_phone.trim() && 
-                     formData.status &&
-                     // For super_admin and lao_admin, require amount, currency, and payment status
-                     ((userRole === 'super_admin' || userRole === 'lao_admin') ? 
-                       (formData.amount.trim() && formData.currency && formData.is_paid !== undefined) : 
-                       true);
+                     formData.status;
+                     // Amount and currency are now optional for all roles
 
   return (
     <>

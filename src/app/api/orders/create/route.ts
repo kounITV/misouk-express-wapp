@@ -5,8 +5,8 @@ interface OrderData {
   tracking_number: string;
   client_name: string;
   client_phone: string;
-  amount: number;
-  currency: string;
+  amount?: number | null;
+  currency?: string | null;
   status: string;
   is_paid: boolean;
 }
@@ -27,8 +27,8 @@ function createOrder(orderData: OrderData) {
     tracking_number: orderData.tracking_number,
     client_name: orderData.client_name,
     client_phone: orderData.client_phone,
-    amount: orderData.amount,
-    currency: orderData.currency,
+    amount: orderData.amount || null,
+    currency: orderData.currency || null,
     status: orderData.status,
     is_paid: orderData.is_paid,
     created_by: "admin", // In real app, get from auth
@@ -70,23 +70,32 @@ function validateOrderData(data: any): string | null {
   if (!data.client_phone || typeof data.client_phone !== 'string') {
     return 'client_phone is required and must be a string';
   }
-  if (typeof data.amount !== 'number' || data.amount < 0) {
-    return 'amount is required and must be a positive number';
+  
+  // Amount is optional - if provided, must be a positive number or null
+  if (data.amount !== undefined && data.amount !== null) {
+    if (typeof data.amount !== 'number' || data.amount < 0) {
+      return 'amount must be a positive number or null';
+    }
   }
-  if (!data.currency || typeof data.currency !== 'string') {
-    return 'currency is required and must be a string';
+  
+  // Currency is optional - if provided, must be a valid string
+  if (data.currency !== undefined && data.currency !== null) {
+    if (typeof data.currency !== 'string') {
+      return 'currency must be a string or null';
+    }
+    
+    // Validate currency options
+    const validCurrencies = ['LAK', 'THB'];
+    if (!validCurrencies.includes(data.currency)) {
+      return `currency must be one of: ${validCurrencies.join(', ')}`;
+    }
   }
+  
   if (!data.status || typeof data.status !== 'string') {
     return 'status is required and must be a string';
   }
   if (typeof data.is_paid !== 'boolean') {
     return 'is_paid is required and must be a boolean';
-  }
-  
-  // Validate currency options
-  const validCurrencies = ['LAK', 'THB'];
-  if (!validCurrencies.includes(data.currency)) {
-    return `currency must be one of: ${validCurrencies.join(', ')}`;
   }
   
   // Validate status options

@@ -68,17 +68,36 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
 
     setSaving(true);
     try {
+      // Start with base product and only update fields that the user can edit
       const updatedProduct: Product = {
         ...product,
-        tracking_number: formData.tracking_number,
-        client_name: formData.client_name,
-        client_phone: formData.client_phone,
-        amount: formData.amount ? parseFloat(formData.amount) : null,
-        currency: formData.currency,
-        status: formData.status,
-        is_paid: formData.is_paid,
         updated_at: new Date().toISOString()
       };
+
+      // Only update fields that the user has permission to edit
+      if (canUserEditField('tracking_number', userRole)) {
+        updatedProduct.tracking_number = formData.tracking_number;
+      }
+      if (canUserEditField('client_name', userRole)) {
+        updatedProduct.client_name = formData.client_name;
+      }
+      if (canUserEditField('client_phone', userRole)) {
+        updatedProduct.client_phone = formData.client_phone;
+      }
+      if (canUserEditField('status', userRole)) {
+        updatedProduct.status = formData.status;
+      }
+      
+      // Only include amount, currency, and is_paid for roles that can edit them
+      if (canUserEditField('amount', userRole)) {
+        updatedProduct.amount = formData.amount ? parseFloat(formData.amount) : null;
+      }
+      if (canUserEditField('currency', userRole)) {
+        updatedProduct.currency = formData.currency;
+      }
+      if (canUserEditField('is_paid', userRole)) {
+        updatedProduct.is_paid = formData.is_paid;
+      }
 
       await onSave(updatedProduct);
       
@@ -92,7 +111,20 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
       
     } catch (error) {
       console.error('Save error:', error);
-      setErrorMessage(error instanceof Error ? error.message : 'ຜິດພາດໃນການບັນທຶກຂໍ້ມູນ');
+      // Extract user-friendly error message
+      let errorMessage = 'ຜິດພາດໃນການບັນທຶກຂໍ້ມູນ';
+      if (error instanceof Error) {
+        if (error.message.includes('ສະຖານະທີ່ອະນຸຍາດມີແຕ່ EXIT_THAI_BRANCH ເທົ່ານັ້ນ')) {
+          errorMessage = 'ກະລຸນາເລືອກສະຖານະ EXIT_THAI_BRANCH';
+        } else if (error.message.includes('Validation failed') || error.message.includes('ລາຄາຕ້ອງບໍ່ຕິດລົບ')) {
+          errorMessage = 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
+        } else if (error.message.includes('ບໍ່ສາມາດແກ້ໄຂຈຳນວນເງິນ, ສະກຸນເງິນ ຫຼື ສະຖານະການຈ່າຍເງິນ')) {
+          errorMessage = 'ກະລຸນາເລືອກສະຖານະ';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      setErrorMessage(errorMessage);
       setShowErrorPopup(true);
     } finally {
       setSaving(false);

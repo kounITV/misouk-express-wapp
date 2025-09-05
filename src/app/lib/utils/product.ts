@@ -147,24 +147,31 @@ export const normalizeProduct = (p: ApiProduct): Product => ({
 });
 
 // Form validation
-export const validateForm = (form: FormData): boolean => {
-  return Boolean(
+export const validateForm = (form: FormData, userRole?: string | null): boolean => {
+  const baseValidation = Boolean(
     form.productCode.trim() &&
     form.senderName.trim() &&
-    form.senderPhone.trim() &&
-    form.amount.trim() &&
-    form.currency.trim()
+    form.senderPhone.trim()
   );
+  
+  // For Thai Admin, amount and currency are optional
+  if (userRole === 'thai_admin') {
+    return baseValidation;
+  }
+  
+  // For other roles, amount and currency are required
+  return baseValidation && Boolean(form.amount.trim() && form.currency.trim());
 };
 
 // Reset form helper
 export const resetForm = (userRole?: string | null): FormData => {
   const baseValues = { ...DEFAULT_FORM_VALUES };
   
-  // For Thai Admin, don't set default amount and currency
+  // For Thai Admin, don't set default amount and currency, and use correct status
   if (userRole === 'thai_admin') {
     baseValues.amount = "";
     baseValues.currency = "";
+    baseValues.status = "EXIT_THAI_BRANCH";
   }
   
   return baseValues;

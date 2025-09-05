@@ -23,14 +23,37 @@ export interface ApiResponse<T> {
 }
 
 // Create a single order
-export async function createOrder(orderData: CreateOrderData): Promise<ApiResponse<any>> {
+export async function createOrder(orderData: CreateOrderData, useOrdersArray: boolean = false): Promise<ApiResponse<any>> {
   try {
+    // For Thai Admin orders array format, ensure only required fields
+    let cleanOrderData;
+    
+    if (useOrdersArray) {
+      // Thai Admin: Only keep required fields (no amount, no currency, no is_paid)
+      cleanOrderData = {
+        tracking_number: orderData.tracking_number,
+        client_name: orderData.client_name,
+        client_phone: orderData.client_phone,
+        status: orderData.status
+      };
+    } else {
+      // Other admins: use all provided data
+      cleanOrderData = { ...orderData };
+    }
+
+    // For Thai Admin, send as orders array format
+    const requestBody = useOrdersArray 
+      ? { orders: [cleanOrderData] }
+      : cleanOrderData;
+
+    console.log('Thai Admin API Request Body:', JSON.stringify(requestBody, null, 2));
+
     const response = await fetch(apiEndpoints.orders, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(orderData),
+      body: JSON.stringify(requestBody),
     });
 
     const result = await response.json();

@@ -10,6 +10,59 @@ import { AlertPopup } from "../ui/alert-popup";
 import { createOrder, CreateOrderData } from "@/lib/api/orders";
 import Image from "next/image";
 
+// Helper function to get user-friendly error messages
+const getUserFriendlyErrorMessage = (error: any): string => {
+  // Handle API response errors
+  if (error && typeof error === 'object') {
+    // Handle specific API error messages
+    if (error.message) {
+      // Status restriction error for Thai Admin
+      if (error.message.includes('ສະຖານະທີ່ອະນຸຍາດມີແຕ່ EXIT_THAI_BRANCH ເທົ່ານັ້ນ')) {
+        return 'ກະລຸນາເລືອກສະຖານະ EXIT_THAI_BRANCH';
+      }
+      
+      // Amount validation error
+      if (error.message.includes('Validation failed') || error.message.includes('ລາຄາຕ້ອງບໍ່ຕິດລົບ')) {
+        return 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
+      }
+      
+      // Permission denied errors
+      if (error.message.includes('ບໍ່ສາມາດແກ້ໄຂຈຳນວນເງິນ, ສະກຸນເງິນ ຫຼື ສະຖານະການຈ່າຍເງິນ')) {
+        return 'ກະລຸນາເລືອກສະຖານະ';
+      }
+      
+      return error.message;
+    }
+    
+    // Handle error arrays
+    if (error.error && Array.isArray(error.error) && error.error.length > 0) {
+      const firstError = error.error[0];
+      if (firstError.message) {
+        if (firstError.message.includes('ສະຖານະທີ່ອະນຸຍາດມີແຕ່ EXIT_THAI_BRANCH ເທົ່ານັ້ນ')) {
+          return 'ກະລຸນາເລືອກສະຖານະ EXIT_THAI_BRANCH';
+        }
+        if (firstError.message.includes('ລາຄາຕ້ອງບໍ່ຕິດລົບ')) {
+          return 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
+        }
+        return firstError.message;
+      }
+    }
+  }
+  
+  // Handle string errors
+  if (typeof error === 'string') {
+    if (error.includes('API Error: 403')) {
+      return 'ກະລຸນາເລືອກສະຖານະ';
+    }
+    if (error.includes('Validation failed')) {
+      return 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
+    }
+    return error;
+  }
+  
+  return 'ເກີດຂໍ້ຜິດພາດ ກະລຸນາລອງໃໝ່ອີກຄັ້ງ';
+};
+
 interface ComprehensiveUpdateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -123,8 +176,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
   const isNewProductValid = () => {
     return newProductData.trackingNumber.trim() && 
            newProductData.clientPhone.trim() && 
-           newProductData.clientName.trim() && 
-           newProductData.amount.trim();
+           newProductData.clientName.trim();
   };
 
   const handleAddProduct = async () => {
@@ -135,19 +187,16 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
     }
 
     try {
-      // Create order data
+      // Create order data - for Thai Admin only send required fields
       const orderData: CreateOrderData = {
         tracking_number: newProductData.trackingNumber,
         client_name: newProductData.clientName,
         client_phone: newProductData.clientPhone,
-        amount: parseFloat(newProductData.amount),
-        currency: newProductData.currency,
-        status: statusUpdateData.newStatus || 'AT_THAI_BRANCH',
-        is_paid: newProductData.isPaid
+        status: statusUpdateData.newStatus || 'EXIT_THAI_BRANCH'
       };
 
-      // Create order using the API
-      const result = await createOrder(orderData);
+      // Create order using the API (use orders array format for thai_admin)
+      const result = await createOrder(orderData, true);
 
       if (result.success) {
         // Create a new product object for the table
@@ -158,7 +207,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
           client_phone: newProductData.clientPhone,
           amount: parseFloat(newProductData.amount),
           currency: newProductData.currency,
-          status: statusUpdateData.newStatus || 'AT_THAI_BRANCH',
+          status: statusUpdateData.newStatus || 'EXIT_THAI_BRANCH',
           is_paid: newProductData.isPaid,
           created_by: '',
           created_at: new Date().toISOString(),
@@ -186,7 +235,8 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
       }
     } catch (error) {
       console.error('Add product error:', error);
-      setErrorMessage('ຜິດພາດໃນການເພີ່ມສິນຄ້າ: ' + error);
+      const errorMessage = error instanceof Error ? getUserFriendlyErrorMessage(error.message) : 'ຜິດພາດໃນການເພີ່ມສິນຄ້າ';
+      setErrorMessage(errorMessage);
       setShowErrorPopup(true);
     }
   };
@@ -226,16 +276,26 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
       // Update selected products status if valid
       if (isStatusUpdateValid()) {
         const updateData = {
-          orders: selectedProducts.map(product => ({
-            id: product.id,
-            tracking_number: product.tracking_number,
-            client_name: product.client_name,
-            client_phone: product.client_phone,
-            amount: product.amount || 0,
-            currency: product.currency,
-            status: statusUpdateData.newStatus,
-            is_paid: statusUpdateData.isPaid
-          }))
+          orders: selectedProducts.map(product => {
+            const orderUpdate: any = {
+              id: product.id,
+              tracking_number: product.tracking_number,
+              client_name: product.client_name,
+              client_phone: product.client_phone,
+              status: statusUpdateData.newStatus,
+              is_paid: statusUpdateData.isPaid
+            };
+
+            // Only include amount/currency if they exist (skip for thai_admin-created products)
+            if (product.amount !== null && product.amount !== undefined) {
+              orderUpdate.amount = product.amount;
+            }
+            if (product.currency !== null && product.currency !== undefined) {
+              orderUpdate.currency = product.currency;
+            }
+
+            return orderUpdate;
+          })
         };
 
         const response = await fetch(apiEndpoints.ordersBulk, {
@@ -249,12 +309,19 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
 
         if (!response.ok) {
           const errorText = await response.text();
-          throw new Error(`API Error: ${response.status} - ${errorText}`);
+          try {
+            const errorJson = JSON.parse(errorText);
+            const friendlyMessage = getUserFriendlyErrorMessage(errorJson);
+            throw new Error(friendlyMessage);
+          } catch (parseError) {
+            throw new Error(`API Error: ${response.status} - ${errorText}`);
+          }
         }
 
         const result = await response.json();
         if (!result.success) {
-          throw new Error(result.message || 'Failed to update products');
+          const friendlyMessage = getUserFriendlyErrorMessage(result);
+          throw new Error(friendlyMessage);
         }
       }
 
@@ -270,7 +337,8 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
 
     } catch (error) {
       console.error('Update error:', error);
-      setErrorMessage('ຜິດພາດໃນການອັບເດດ: ' + error);
+      const errorMessage = error instanceof Error ? error.message : 'ຜິດພາດໃນການອັບເດດ';
+      setErrorMessage(errorMessage);
       setShowErrorPopup(true);
     } finally {
       setIsUpdating(false);
@@ -419,7 +487,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
                     {/* ລາຄາ */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        ລາຄາ <span className="text-red-500">*</span>
+                        ລາຄາ
                       </label>
                       <input
                         type="number"
@@ -433,7 +501,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
                     {/* ສະກຸນເງິນ */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        ສະກຸນເງິນ <span className="text-red-500">*</span>
+                        ສະກຸນເງິນ
                       </label>
                       <select
                         className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -451,7 +519,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
                     {/* ການຊຳລະ */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        ການຊຳລະ <span className="text-red-500">*</span>
+                        ການຊຳລະ
                       </label>
                       <select
                         className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -574,76 +642,6 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
                     </table>
                   </div>
                 </div>
-                grgreg
-                <div className="bg-white rounded-lg border border-gray-200 min-h-[400px] flex flex-col">
-  <div className="flex-1 overflow-x-auto">
-    <table className="w-full min-w-[600px]">
-      <thead className="bg-gray-50 sticky top-0">
-        <tr>
-          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ລຳດັບ</th>
-          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ຊື່ລູກຄ້າ</th>
-          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ລະຫັດ</th>
-          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ເບີໂທ</th>
-          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ລາຄາ</th>
-          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ການຊຳລະ</th>
-          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ສະກຸນເງິນ</th>
-          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">ຈັດການ</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-200">
-        {addedProducts.length === 0 ? (
-          <tr>
-            <td colSpan={8} className="px-3 py-12">
-              <div className="flex flex-col items-center justify-center">
-                <Image 
-                  src="/product-empty.png" 
-                  alt="No products" 
-                  width={96}
-                  height={96}
-                  className="mb-4 opacity-50"
-                />
-                <p className="text-sm text-gray-500 text-center">
-                  ບໍ່ມີຂໍ້ມູນສິນຄ້າ<br/>
-                  ກະລຸນາເພີ່ມສິນຄ້າໃໝ່
-                </p>
-              </div>
-            </td>
-          </tr>
-        ) : (
-          addedProducts.map((product, index) => (
-            <tr key={product.id} className="hover:bg-gray-50">
-              <td className="px-3 py-3 text-sm text-gray-900">{index + 1}</td>
-              <td className="px-3 py-3 text-sm text-gray-900">{product.client_name}</td>
-              <td className="px-3 py-3 text-sm text-blue-600 font-medium">{product.tracking_number}</td>
-              <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone}</td>
-              <td className="px-3 py-3 text-sm text-gray-900">{product.amount ? product.amount.toLocaleString() : '0'}</td>
-              <td className="px-3 py-3 text-sm">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.is_paid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                </span>
-              </td>
-              <td className="px-3 py-3 text-sm text-gray-900">
-                {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency}
-              </td>
-              <td className="px-3 py-3 text-sm">
-                <button 
-                  onClick={() => handleRemoveProduct(product.id)}
-                  className="text-red-600 hover:text-red-800 text-sm"
-                  title="ລຶບ"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              </td>
-            </tr>
-          ))
-        )}
-      </tbody>
-    </table>
-  </div>
-</div>
-
               </div>
             </div>
 

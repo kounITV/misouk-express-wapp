@@ -38,7 +38,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
     client_phone: '',
     amount: '',
     currency: 'LAK',
-    status: 'AT_THAI_BRANCH'
+    status: userRole === 'thai_admin' ? 'EXIT_THAI_BRANCH' : 'AT_THAI_BRANCH'
   });
 
   const [creating, setCreating] = useState(false);
@@ -59,21 +59,33 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
 
     setCreating(true);
     try {
-      const createData: CreateOrderData = {
-        tracking_number: formData.tracking_number,
-        client_name: formData.client_name,
-        client_phone: formData.client_phone,
-      };
+      let createData: CreateOrderData;
+      
+      if (userRole === 'thai_admin') {
+        // Thai Admin: Only send required fields
+        createData = {
+          tracking_number: formData.tracking_number,
+          client_name: formData.client_name,
+          client_phone: formData.client_phone,
+          status: formData.status || 'EXIT_THAI_BRANCH'
+        };
+      } else {
+        // Other admins: Send all fields
+        createData = {
+          tracking_number: formData.tracking_number,
+          client_name: formData.client_name,
+          client_phone: formData.client_phone,
+          status: formData.status || 'AT_THAI_BRANCH',
+          is_paid: false
+        };
 
-      // Only add fields that the user can create
-      if (canUserCreateField('amount', userRole) && formData.amount) {
-        createData.amount = parseFloat(formData.amount);
-      }
-      if (canUserCreateField('currency', userRole)) {
-        createData.currency = formData.currency;
-      }
-      if (canUserCreateField('status', userRole)) {
-        createData.status = formData.status;
+        // Only add fields that the user can create
+        if (canUserCreateField('amount', userRole) && formData.amount && formData.amount.trim()) {
+          createData.amount = parseFloat(formData.amount);
+        }
+        if (canUserCreateField('currency', userRole) && formData.currency && formData.currency.trim()) {
+          createData.currency = formData.currency;
+        }
       }
 
       await onCreate(createData);
@@ -98,7 +110,18 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
       
     } catch (error) {
       console.error('Create error:', error);
-      setErrorMessage(error instanceof Error ? error.message : 'ຜິດພາດໃນການສ້າງຂໍ້ມູນ');
+      // Extract user-friendly error message
+      let errorMessage = 'ຜິດພາດໃນການສ້າງຂໍ້ມູນ';
+      if (error instanceof Error) {
+        if (error.message.includes('ສະຖານະທີ່ອະນຸຍາດມີແຕ່ EXIT_THAI_BRANCH ເທົ່ານັ້ນ')) {
+          errorMessage = 'ກະລຸນາເລືອກສະຖານະ';
+        } else if (error.message.includes('Validation failed') || error.message.includes('ລາຄາຕ້ອງບໍ່ຕິດລົບ')) {
+          errorMessage = 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      setErrorMessage(errorMessage);
       setShowErrorPopup(true);
     } finally {
       setCreating(false);
@@ -211,15 +234,15 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
               )}
             </div>
 
-            {/* Additional fields for super_admin */}
-            {userRole === 'super_admin' && (
+            {/* Additional fields for super_admin and lao_admin */}
+            {(userRole === 'super_admin' || userRole === 'lao_admin') && (
               <div className="mt-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Price */}
                   {canUserCreateField('amount', userRole) && (
                     <div>
                       <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                        {LABELS.PRICE}
+                        {LABELS.PRICE} <span className="text-[#ff0000]">*</span>
                       </label>
                       <input
                         type="number"
@@ -241,7 +264,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
                   {canUserCreateField('currency', userRole) && (
                     <div>
                       <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                        {LABELS.CURRENCY}
+                        {LABELS.CURRENCY} <span className="text-[#ff0000]">*</span>
                       </label>
                       <select
                         className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
