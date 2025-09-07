@@ -76,7 +76,7 @@ export const RoleBasedProductRow = memo(({
       {/* ເບີໂທ */}
       {canUserAccessColumn('client_phone', userRole) && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-          {product.client_phone}
+          {product.client_phone || '-'}
         </td>
       )}
 

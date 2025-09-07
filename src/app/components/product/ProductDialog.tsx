@@ -110,11 +110,6 @@ const ProductDialog = memo(({
   const saveEditing = () => {
     if (!editingProductId) return;
     
-    // Validate phone number
-    if (editingData.client_phone && editingData.client_phone.length < 7) {
-      showAlert('ເບີໂທລະສັບລູກຄ້າ ຕ້ອງມີຢ່າງຕ່ຳ 7 ໂຕ', 'error', 'ຂໍ້ມູນບໍ່ຖືກຕ້ອງ');
-      return;
-    }
     
     setDialogProducts(prev => prev.map(product => 
       product.id === editingProductId 
@@ -143,11 +138,6 @@ const ProductDialog = memo(({
   const handleSubmit = () => {
     if (!isFormValid) return;
     
-    // Validate phone number length
-    if (form.senderPhone.length < 7) {
-      showAlert('ເບີໂທລະສັບລູກຄ້າ ຕ້ອງມີຢ່າງຕ່ຳ 7 ໂຕ', 'error', 'ຂໍ້ມູນບໍ່ຖືກຕ້ອງ');
-      return;
-    }
     
     // Check if product with same code already exists
     const existingProduct = dialogProducts.find(
@@ -164,7 +154,7 @@ const ProductDialog = memo(({
       id: crypto.randomUUID(),
       tracking_number: form.productCode,
       client_name: form.senderName,
-      client_phone: form.senderPhone,
+      client_phone: form.senderPhone ? form.senderPhone : null,
       amount: form.amount ? parseFloat(form.amount) : null,
       currency: form.currency,
       status: form.status,
@@ -208,7 +198,7 @@ const ProductDialog = memo(({
             id: crypto.randomUUID(), // Add required UUID
             tracking_number: product.tracking_number,
             client_name: product.client_name,
-            client_phone: product.client_phone,
+            //client_phone: product.client_phone,
             status: product.status
           };
 
@@ -216,9 +206,6 @@ const ProductDialog = memo(({
           if (userRole !== 'thai_admin') {
             // Validate amount - database has precision 10, scale 2 (max 99,999,999.99)
             const amount = product.amount || 0;
-            if (amount > 99999999.99) {
-              throw new Error(`ລາຄາສູງເກີນໄປ: ${amount}. ລາຄາສູງສຸດຄວນເປັນ 99,999,999.99`);
-            }
             
             orderData.amount = amount; // Send as number, not string
             orderData.currency = product.currency;
@@ -345,7 +332,7 @@ const ProductDialog = memo(({
                   {/* Customer Phone */}
                   <div>
                     <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                      {LABELS.CUSTOMER_PHONE} <span className="text-[#ff0000]">{PRODUCT_TEXT.REQUIRED}</span>
+                      {LABELS.CUSTOMER_PHONE}
                     </label>
                     <input
                       type="tel"
@@ -379,7 +366,7 @@ const ProductDialog = memo(({
                   {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                     <div>
                       <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                        {LABELS.PRICE} <span className="text-[#ff0000]">{PRODUCT_TEXT.REQUIRED}</span>
+                        {LABELS.PRICE}
                       </label>
                       <input
                         type="number"
@@ -403,7 +390,7 @@ const ProductDialog = memo(({
                   {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                     <div>
                       <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                        {LABELS.CURRENCY} <span className="text-[#ff0000]">{PRODUCT_TEXT.REQUIRED}</span>
+                        {LABELS.CURRENCY}
                       </label>
                       <select
                         className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96]"
@@ -537,7 +524,7 @@ const ProductDialog = memo(({
                                   className="w-full px-1 py-1 text-xs border border-gray-300 rounded"
                                 />
                               ) : (
-                                product.client_phone
+                                product.client_phone || '-'
                               )}
                             </td>
                             

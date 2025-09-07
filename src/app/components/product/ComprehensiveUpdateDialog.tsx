@@ -174,9 +174,11 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
   };
 
   const isNewProductValid = () => {
-    return newProductData.trackingNumber.trim() && 
-           newProductData.clientPhone.trim() && 
+    const baseValidation = newProductData.trackingNumber.trim() && 
            newProductData.clientName.trim();
+    
+    
+    return baseValidation;
   };
 
   const handleAddProduct = async () => {
@@ -459,7 +461,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
                     {/* ເບີໂທລູກຄ້າ */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        ເບີໂທລູກຄ້າ <span className="text-red-500">*</span>
+                        ເບີໂທລູກຄ້າ
                       </label>
                       <input
                         type="tel"
@@ -608,9 +610,9 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
                                   {product.tracking_number}
                                 </span>
                               </td>
-                              <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone}</td>
+                              <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone || '-'}</td>
                               <td className="px-3 py-3 text-sm text-gray-900">
-                                {product.amount ? product.amount.toLocaleString() : '0'}
+                                {product.amount ? product.amount.toLocaleString() : '-'}
                               </td>
                               <td className="px-3 py-3 text-sm">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${

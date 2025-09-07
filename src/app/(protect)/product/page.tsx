@@ -205,7 +205,7 @@ const ProductRow = memo(({
       </td>
       {/* ເບີໂທ */}
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {product.client_phone}
+        {product.client_phone || '-'}
       </td>
       {/* ລາຄາ */}
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -213,7 +213,7 @@ const ProductRow = memo(({
       </td>
       {/* ສະກຸນເງິນ */}
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency}
+        {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency || '-'}
       </td>
       {/* ສະຖານະ */}
       <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -276,6 +276,8 @@ export default function ProductManagementPage() {
   const [openRoleBasedEdit, setOpenRoleBasedEdit] = useState<boolean>(false);
   const [openUpdateStatus, setOpenUpdateStatus] = useState<boolean>(false);
   const [showMixedStatusPopup, setShowMixedStatusPopup] = useState<boolean>(false);
+  const [showErrorPopup, setShowErrorPopup] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const [itemsPerPage, setItemsPerPage] = useState<number>(DEFAULT_ITEMS_PER_PAGE);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -322,17 +324,11 @@ export default function ProductManagementPage() {
     const baseValidation = Boolean(
       form.status &&
       form.productCode.trim() &&
-      form.senderName.trim() &&
-      form.senderPhone.trim()
+      form.senderName.trim()
     );
     
-    // For Thai Admin, amount and currency are optional
-    if (userRole === 'thai_admin') {
-      return baseValidation;
-    }
-    
-    // For Super Admin and Lao Admin, amount and currency are required
-    return baseValidation && Boolean(form.amount.trim()) && Boolean(form.currency);
+    // Amount and currency are now optional for all roles
+    return baseValidation;
   }, [form, userRole]);
 
   const fetchProducts = async (page: number = 1, limit: number = 50) => {
@@ -700,41 +696,15 @@ export default function ProductManagementPage() {
 
   // Handle update status button click
   const handleUpdateStatusClick = useCallback(() => {
-    // If no products are selected, auto-select products with the filtered status
-    if (selectedItems.size === 0 && statusFilter) {
-      const filteredProducts = products.filter(product => {
-        return product.status === statusFilter;
-      });
-      
-      if (filteredProducts.length > 0) {
-        // Auto-select all products with the filtered status
-        const newSelectedItems = new Set(filteredProducts.map(product => product.id));
-        setSelectedItems(newSelectedItems);
-        setSelectAll(newSelectedItems.size === filteredProducts.length);
-        
-        // Check if all selected products have the same status
-        const firstProduct = filteredProducts[0];
-        const allSameStatus = firstProduct && filteredProducts.every(product => product.status === firstProduct.status);
-        if (allSameStatus) {
-          // Open dialog with auto-selected products
-          setOpenUpdateStatus(true);
-        } else {
-          // Show mixed status popup
-          setShowMixedStatusPopup(true);
-        }
-        return;
-      }
-    }
-    
-    // If products are already selected, check for mixed statuses
-    if (checkMixedStatuses()) {
+    // If products are selected, check for mixed statuses
+    if (selectedItems.size > 0 && checkMixedStatuses()) {
       // Show mixed status popup directly without opening dialog
       setShowMixedStatusPopup(true);
     } else {
-      // Open dialog normally
+      // Open dialog normally (even with empty selection)
       setOpenUpdateStatus(true);
     }
-  }, [checkMixedStatuses, selectedItems.size, statusFilter, products]);
+  }, [checkMixedStatuses, selectedItems.size]);
 
   // Handle individual item selection
   const handleItemSelect = useCallback((productId: string) => {
@@ -1036,6 +1006,13 @@ export default function ProductManagementPage() {
       requestBody.is_paid = updatedProduct.is_paid;
     }
 
+    // Debug: Log what's being sent to the API
+    console.log('=== EDIT REQUEST DEBUG ===');
+    console.log('User Role:', userRole);
+    console.log('Request Body:', requestBody);
+    console.log('API Endpoint:', `${apiEndpoints.orders}/${updatedProduct.id}`);
+    console.log('=== END EDIT REQUEST DEBUG ===');
+
     // Make API call to update product
     const response = await fetch(`${apiEndpoints.orders}/${updatedProduct.id}`, {
       method: 'PUT',
@@ -1050,8 +1027,13 @@ export default function ProductManagementPage() {
       const errorText = await response.text();
       try {
         const errorJson = JSON.parse(errorText);
-        const friendlyMessage = getUserFriendlyErrorMessage(errorJson);
-        throw new Error(friendlyMessage);
+        // Extract the message directly from the API response
+        if (errorJson.message) {
+          throw new Error(errorJson.message);
+        } else {
+          const friendlyMessage = getUserFriendlyErrorMessage(errorJson);
+          throw new Error(friendlyMessage);
+        }
       } catch (parseError) {
         throw new Error(`API Error: ${response.status} ${response.statusText} - ${errorText}`);
       }
@@ -1326,8 +1308,8 @@ export default function ProductManagementPage() {
                           </td>
                           {/* ເບີໂທ - Always visible */}
                           <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 min-w-[100px]">
-                            <div className="max-w-[100px] truncate" title={product.client_phone}>
-                              {product.client_phone}
+                            <div className="max-w-[100px] truncate" title={product.client_phone || '-'}>
+                              {product.client_phone || '-'}
                             </div>
                           </td>
                           {/* ສະຖານະ - Always visible */}
@@ -1514,6 +1496,15 @@ export default function ProductManagementPage() {
               onOpenChange={setShowMixedStatusPopup}
               title="ແຈ້ງເຕືອນ"
               message="ສະຖານະຕ່າງກັນ (ບໍ່ສາມາດອັບເດດໄດ້)"
+              autoCloseTimer={5000}
+              showTimer={true}
+            />
+
+            <SuccessPopup
+              open={showErrorPopup}
+              onOpenChange={setShowErrorPopup}
+              title="ແຈ້ງເຕືອນ"
+              message={errorMessage}
               autoCloseTimer={5000}
               showTimer={true}
             />

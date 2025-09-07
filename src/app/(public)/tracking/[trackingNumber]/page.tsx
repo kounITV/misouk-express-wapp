@@ -242,7 +242,7 @@ const TrackingDetailsPage = () => {
                       </div>
                       <div className="mb-2">
                         <span className="text-gray-600 text-sm">ເບີໂທລູກຄ້າ: </span>
-                        <span className="text-blue-600 font-medium">{trackingData.client_phone}</span>
+                        <span className="text-blue-600 font-medium">{trackingData.client_phone || '-'}</span>
                       </div>
                       <div>
                         <span className="text-gray-600 text-sm">ລະຫັດສິນຄ້າ: </span>

@@ -80,17 +80,21 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showMixedStatusPopup, setShowMixedStatusPopup] = useState(false);
+  const [isCheckingTracking, setIsCheckingTracking] = useState(false);
+  const [trackingDataFound, setTrackingDataFound] = useState(false);
+  const [showTrackingNotFoundPopup, setShowTrackingNotFoundPopup] = useState(false);
 
     // Initialize form when dialog opens
   useEffect(() => {
     if (open) {
       if (selectedProducts.length === 0) {
-        // No products selected - reset form
+        // No products selected - reset form and clear added products
         setFormData({
           currentStatus: '',
           newStatus: '',
           isPaid: false
         });
+        setAddedProducts([]);
       } else {
         // Check if all selected products have the same status
         const firstProduct = selectedProducts[0];
@@ -141,8 +145,8 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
   const isFormValid = () => {
     // Check if products are selected and have the same status
-    if (selectedProducts.length === 0) {
-      // When no products selected, need both current and new status
+    if (selectedProducts.length === 0 && addedProducts.length === 0) {
+      // When no products selected and no added products, need both current and new status
       return formData.currentStatus && formData.newStatus;
     }
     if (formData.currentStatus === 'MIXED_STATUS') return false;
@@ -152,25 +156,104 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
   const isNewProductValid = () => {
     const baseValidation = newProductData.trackingNumber &&
-      newProductData.clientPhone &&
       newProductData.clientName;
     
-    // For Thai Admin, amount, currency, and isPaid are optional
-    if (userRole === 'thai_admin') {
-      return baseValidation;
-    }
-    
-    // For Super Admin and Lao Admin, amount is required
-    return baseValidation && newProductData.amount;
+    // Amount, currency, and isPaid are now optional for all roles
+    return baseValidation;
   };
 
   const handleNewProductChange = (field: keyof NewProductData, value: string | boolean) => {
     setNewProductData(prev => ({ ...prev, [field]: value }));
+    // Reset tracking data found state when tracking number changes
+    if (field === 'trackingNumber') {
+      setTrackingDataFound(false);
+    }
+  };
+
+  const handleCheckTrackingNumber = async () => {
+    if (!newProductData.trackingNumber.trim()) {
+      setErrorMessage('ກະລຸນາໃສ່ລະຫັດສິນຄ້າກ່ອນ');
+      setShowErrorPopup(true);
+      return;
+    }
+
+    setIsCheckingTracking(true);
+    try {
+      // Check if tracking number exists in the system
+      console.log('=== TRACKING NUMBER CHECK DEBUG ===');
+      console.log('Checking tracking number:', newProductData.trackingNumber);
+      console.log('API URL:', `/api/orders?search=${encodeURIComponent(newProductData.trackingNumber)}&limit=1`);
+      console.log('Token available:', !!AuthService.getStoredToken());
+      console.log('Token preview:', AuthService.getStoredToken()?.substring(0, 20) + '...');
+      
+      const response = await fetch(`/api/orders?search=${encodeURIComponent(newProductData.trackingNumber)}&limit=1`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${AuthService.getStoredToken()}`,
+        },
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response status text:', response.statusText);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('API Response data:', data);
+        console.log('Orders found:', data.data?.length || 0);
+        if (data.data && data.data.length > 0) {
+          // Tracking number found - populate form with existing data
+          const existingProduct = data.data[0];
+          console.log('Found existing product:', existingProduct);
+          
+          setNewProductData(prev => ({
+            ...prev,
+            clientPhone: existingProduct.client_phone || '',
+            clientName: existingProduct.client_name || '',
+            amount: existingProduct.amount ? existingProduct.amount.toString() : '',
+            currency: existingProduct.currency || 'LAK',
+            isPaid: existingProduct.is_paid || false
+          }));
+          
+          console.log('Updated form data with:', {
+            clientPhone: existingProduct.client_phone || '',
+            clientName: existingProduct.client_name || '',
+            amount: existingProduct.amount ? existingProduct.amount.toString() : '',
+            currency: existingProduct.currency || 'LAK',
+            isPaid: existingProduct.is_paid || false
+          });
+          
+          setTrackingDataFound(true);
+          
+          // No popup when data is found - just populate the form
+        } else {
+          // Tracking number not found
+          setShowTrackingNotFoundPopup(true);
+          setTrackingDataFound(false);
+        }
+      } else {
+        console.log('API request failed with status:', response.status);
+        const errorText = await response.text();
+        console.log('Error response:', errorText);
+        setErrorMessage('ຜິດພາດໃນການກວດສອບລະຫັດສິນຄ້າ');
+        setShowErrorPopup(true);
+      }
+    } catch (error) {
+      console.error('Error checking tracking number:', error);
+      setErrorMessage('ຜິດພາດໃນການກວດສອບລະຫັດສິນຄ້າ');
+      setShowErrorPopup(true);
+    } finally {
+      setIsCheckingTracking(false);
+    }
   };
 
   const handleAddProduct = () => {
-    if (!isNewProductValid()) return;
+    if (!isNewProductValid()) {
+      console.log('New product validation failed');
+      return;
+    }
 
+    console.log('Adding new product:', newProductData);
     const newProduct: Product = {
       id: crypto.randomUUID(),
       tracking_number: newProductData.trackingNumber,
@@ -187,7 +270,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       creator: undefined
     };
 
-    setAddedProducts(prev => [...prev, newProduct]);
+    setAddedProducts(prev => {
+      const updated = [...prev, newProduct];
+      console.log('Added products list updated:', updated);
+      return updated;
+    });
 
     // Reset form
     setNewProductData({
@@ -215,9 +302,111 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     });
   };
 
+  // const handleUpdate = async () => {
+  //   if (!isFormValid() && addedProducts.length === 0) {
+  //     if (selectedProducts.length === 0) {
+  //       setErrorMessage('ກະລຸນາເລືອກສະຖານະປະຈຸບັນ ແລະ ສະຖານະໃໝ່ ຫຼື ເພີ່ມສິນຄ້າ');
+  //     } else if (formData.currentStatus === 'MIXED_STATUS') {
+  //       setErrorMessage('ບໍ່ສາມາດອັບເດດສະຖານະໄດ້ ເນື່ອງຈາກສິນຄ້າທີ່ເລືອກມີສະຖານະຕ່າງກັນ ກະລຸນາເລືອກສິນຄ້າທີ່ມີສະຖານະດຽວກັນ');
+  //     } else {
+  //       setErrorMessage('ກະລຸນາເລືອກສະຖານະໃໝ່ ຫຼື ເພີ່ມສິນຄ້າ');
+  //     }
+  //     setShowErrorPopup(true);
+  //     return;
+  //   }
+
+  //   const token = AuthService.getStoredToken();
+  //   if (!token) {
+  //     setErrorMessage('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ');
+  //     setShowErrorPopup(true);
+  //     return;
+  //   }
+
+  //   setIsUpdating(true);
+
+  //   try {
+  //     // Check if we have products to update
+  //     if (selectedProducts.length === 0) {
+  //       // When no products selected, just show success message
+  //       setShowSuccessPopup(true);
+  //       setIsUpdating(false);
+  //       return;
+  //     }
+
+  //     // Prepare the bulk update data based on user role
+  //     const updateData = {
+  //       orders: selectedProducts.map(product => {
+  //         const orderUpdate: any = {
+  //           id: product.id,
+  //           tracking_number: product.tracking_number,
+  //           client_name: product.client_name,
+  //           client_phone: product.client_phone,
+  //           status: formData.newStatus
+  //         };
+
+  //         // Only include amount, currency, and is_paid for non-thai_admin roles
+  //         if (userRole !== 'thai_admin') {
+  //           orderUpdate.amount = product.amount || 0;
+  //           orderUpdate.currency = product.currency;
+  //           orderUpdate.is_paid = formData.isPaid;
+  //         }
+
+  //         return orderUpdate;
+  //       })
+  //     };
+
+  //     console.log('Updating products with data:', updateData);
+
+  //     const response = await fetch(apiEndpoints.ordersBulk, {
+  //       method: 'PUT',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': `Bearer ${token}`,
+  //         'Cache-Control': 'no-cache, no-store, must-revalidate',
+  //         'Pragma': 'no-cache',
+  //         'Expires': '0',
+  //       },
+  //       body: JSON.stringify(updateData)
+  //     });
+
+  //     console.log('Response status:', response.status);
+
+  //     if (response.ok) {
+  //       const result = await response.json();
+  //       console.log('Update result:', result);
+
+  //       if (result.success) {
+  //         setShowSuccessPopup(true);
+
+  //         // Close dialog after success
+  //         setTimeout(() => {
+  //           onOpenChange(false);
+  //           if (onUpdateSuccess) {
+  //             onUpdateSuccess();
+  //           }
+  //         }, 2000);
+  //       } else {
+  //         setErrorMessage(result.message || 'ບໍ່ສາມາດອັບເດດສະຖານະໄດ້');
+  //         setShowErrorPopup(true);
+  //       }
+  //     } else {
+  //       const errorText = await response.text();
+  //       console.error('API error:', response.status, errorText);
+  //       setErrorMessage(`ຜິດພາດ ${response.status}: ${errorText}`);
+  //       setShowErrorPopup(true);
+  //     }
+  //   } catch (error) {
+  //     console.error('Network error:', error);
+  //     setErrorMessage('ຜິດພາດໃນການເຊື່ອມຕໍ່ກັບເຊີເວີ: ' + error);
+  //     setShowErrorPopup(true);
+  //   } finally {
+  //     setIsUpdating(false);
+  //   }
+  // };
+
   const handleUpdate = async () => {
-    if (!isFormValid() && addedProducts.length === 0) {
-      if (selectedProducts.length === 0) {
+    if (!isFormValid()) {
+      if (selectedProducts.length === 0 && addedProducts.length === 0) {
         setErrorMessage('ກະລຸນາເລືອກສະຖານະປະຈຸບັນ ແລະ ສະຖານະໃໝ່ ຫຼື ເພີ່ມສິນຄ້າ');
       } else if (formData.currentStatus === 'MIXED_STATUS') {
         setErrorMessage('ບໍ່ສາມາດອັບເດດສະຖານະໄດ້ ເນື່ອງຈາກສິນຄ້າທີ່ເລືອກມີສະຖານະຕ່າງກັນ ກະລຸນາເລືອກສິນຄ້າທີ່ມີສະຖານະດຽວກັນ');
@@ -238,19 +427,24 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     setIsUpdating(true);
 
     try {
-      // Check if we have products to update
-      if (selectedProducts.length === 0 && formData.currentStatus && formData.newStatus) {
-        // When no products selected but current status is specified, 
-        // this would need to be handled by the parent component
-        setErrorMessage('ກະລຸນາເລືອກສິນຄ້າທີ່ຕ້ອງການອັບເດດຈາກຕາຕະລາງກ່ອນ');
-        setShowErrorPopup(true);
-        setIsUpdating(false);
-        return;
-      }
+        // Check if we have products to update
+        if (selectedProducts.length === 0 && addedProducts.length === 0) {
+          // When no products selected and no new products added, show error
+          setErrorMessage('ກະລຸນາເລືອກສິນຄ້າຈາກຕາຕະລາງ ຫຼື ເພີ່ມສິນຄ້າໃໝ່');
+          setShowErrorPopup(true);
+          setIsUpdating(false);
+          return;
+        }
 
       // Prepare the bulk update data based on user role
+      // Combine selected products and added products
+      const allProducts = [...selectedProducts, ...addedProducts];
+      console.log('All products to update:', allProducts);
+      console.log('Selected products:', selectedProducts);
+      console.log('Added products:', addedProducts);
+      
       const updateData = {
-        orders: selectedProducts.map(product => {
+        orders: allProducts.map(product => {
           const orderUpdate: any = {
             id: product.id,
             tracking_number: product.tracking_number,
@@ -272,7 +466,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
       console.log('Updating products with data:', updateData);
 
-      const response = await fetch(apiEndpoints.ordersBulk, {
+      const response = await fetch('/api/orders/bulk', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -318,7 +512,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       setIsUpdating(false);
     }
   };
-
+  
   const handleCancel = () => {
     setFormData({
       currentStatus: '',
@@ -440,19 +634,39 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         ລະຫັດສິນຄ້າ <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
-                        value={newProductData.trackingNumber}
-                        onChange={(e) => handleNewProductChange('trackingNumber', e.target.value)}
-                        placeholder="ລະຫັດສິນຄ້າ"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          className="flex-1 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                          value={newProductData.trackingNumber}
+                          onChange={(e) => handleNewProductChange('trackingNumber', e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              console.log('Enter key pressed - checking tracking number:', newProductData.trackingNumber);
+                              handleCheckTrackingNumber();
+                            }
+                          }}
+                          placeholder="ລະຫັດສິນຄ້າ"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCheckTrackingNumber}
+                          disabled={isCheckingTracking}
+                          className="px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 whitespace-nowrap disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                          {isCheckingTracking ? 'ກຳລັງກວດສອບ...' : 'ກວດສອບ'}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        💡 ກົດ Enter ເພື່ອກວດສອບລະຫັດສິນຄ້າ
+                      </p>
                     </div>
 
                     {/* ເບີໂທລູກຄ້າ */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        ເບີໂທລູກຄ້າ <span className="text-red-500">*</span>
+                        ເບີໂທລູກຄ້າ
                       </label>
                       <input
                         type="tel"
@@ -460,6 +674,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                         value={newProductData.clientPhone}
                         onChange={(e) => handleNewProductChange('clientPhone', e.target.value)}
                         placeholder="ເບີໂທລູກຄ້າ"
+                        disabled={false}
                       />
                     </div>
 
@@ -474,6 +689,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                         value={newProductData.clientName}
                         onChange={(e) => handleNewProductChange('clientName', e.target.value)}
                         placeholder="ຊື່ລູກຄ້າ"
+                        disabled={false}
                       />
                     </div>
 
@@ -489,6 +705,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                           value={newProductData.amount}
                           onChange={(e) => handleNewProductChange('amount', e.target.value)}
                           placeholder="ລາຄາ"
+                          disabled={false}
                         />
                       </div>
                     )}
@@ -500,9 +717,10 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                           ສະກຸນເງິນ <span className="text-red-500">*</span>
                         </label>
                         <select
-                          className="w-full p-3 border border-gray-300 rounded-md bg-white text-black focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className={`w-full p-3 border border-gray-300 rounded-md text-black focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${!trackingDataFound ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                           value={newProductData.currency}
                           onChange={(e) => handleNewProductChange('currency', e.target.value)}
+                          disabled={false}
                         >
                           {CURRENCY_OPTIONS.map(option => (
                             <option key={option.value} value={option.value}>
@@ -520,9 +738,10 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                           ການຊຳລະ <span className="text-red-500">*</span>
                         </label>
                         <select
-                          className="w-full p-3 border border-gray-300 rounded-md bg-white text-black focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          className={`w-full p-3 border border-gray-300 rounded-md text-black focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${!trackingDataFound ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                           value={newProductData.isPaid.toString()}
                           onChange={(e) => handleNewProductChange('isPaid', e.target.value === 'true')}
+                          disabled={false}
                         >
                           {PAYMENT_OPTIONS.map(option => (
                             <option key={option.value.toString()} value={option.value.toString()}>
@@ -620,11 +839,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                   <span className="text-blue-600 font-medium">{product.tracking_number}</span>
                                 </td>
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap overflow-x-auto max-w-[120px]">
-                                  {product.client_phone}
+                                  {product.client_phone || '-'}
                                 </td>
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                                   <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                    {product.amount ? product.amount.toLocaleString() : '0'}
+                                    {product.amount ? product.amount.toLocaleString() : '-'}
                                   </td>
                                 )}
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
@@ -692,11 +911,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                   <span className="text-blue-600 font-medium">{product.tracking_number}</span>
                                 </td>
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap overflow-x-auto max-w-[120px]">
-                                  {product.client_phone}
+                                  {product.client_phone || '-'}
                                 </td>
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                                   <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                    {product.amount ? product.amount.toLocaleString() : '0'}
+                                    {product.amount ? product.amount.toLocaleString() : '-'}
                                   </td>
                                 )}
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
@@ -755,9 +974,9 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                   {product.tracking_number}
                                 </span>
                               </td>
-                              <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone}</td>
+                              <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone || '-'}</td>
                               <td className="px-3 py-3 text-sm text-gray-900">
-                                {product.amount ? product.amount.toLocaleString() : '0'}
+                                {product.amount ? product.amount.toLocaleString() : '-'}
                               </td>
                               <td className="px-3 py-3 text-sm">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -800,7 +1019,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                 ຍັງບໍ່ໄດ້ເລືອກສິນຄ້າ
                               </p>
                               <p className="text-xs text-gray-500 text-center">
-                                ກະລຸນາເລືອກສິນຄ້າທີ່ຕ້ອງການອັບເດດສະຖານະຈາກຕາຕະລາງກ່ອນ
+                                ບໍ່ມີສິນຄ້າທີ່ເລືອກເພື່ອອັບເດດສະຖານະ
                               </p>
                             </div>
                           </td>
@@ -815,9 +1034,9 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                 {product.tracking_number}
                               </span>
                             </td>
-                            <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone}</td>
+                            <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone || '-'}</td>
                             <td className="px-3 py-3 text-sm text-gray-900">
-                              {product.amount ? product.amount.toLocaleString() : '0'}
+                              {product.amount ? product.amount.toLocaleString() : '-'}
                             </td>
                             <td className="px-3 py-3 text-sm text-gray-900">
                               {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency}
@@ -885,7 +1104,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                 ຍັງບໍ່ໄດ້ເລືອກສິນຄ້າ
                               </p>
                               <p className="text-xs text-gray-500 text-center">
-                                ກະລຸນາເລືອກສິນຄ້າທີ່ຕ້ອງການອັບເດດສະຖານະຈາກຕາຕະລາງກ່ອນ
+                                ບໍ່ມີສິນຄ້າທີ່ເລືອກເພື່ອອັບເດດສະຖານະ
                               </p>
                             </div>
                           </td>
@@ -900,9 +1119,9 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                 {product.tracking_number}
                               </span>
                             </td>
-                            <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone}</td>
+                            <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone || '-'}</td>
                             <td className="px-3 py-3 text-sm text-gray-900">
-                              {product.amount ? product.amount.toLocaleString() : '0'}
+                              {product.amount ? product.amount.toLocaleString() : '-'}
                             </td>
                             <td className="px-3 py-3 text-sm text-gray-900">
                               {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency}
@@ -945,7 +1164,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
               <button
                 type="button"
                 onClick={handleUpdate}
-                disabled={(!isFormValid() && addedProducts.length === 0) || isUpdating}
+                 disabled={!isFormValid() || isUpdating}
                 className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isUpdating ? 'ກຳລັງອັບເດດ...' : 'ອະນຸມັດ'}
@@ -973,6 +1192,16 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         message={errorMessage}
         type="error"
       />
+
+      {/* Tracking Not Found Popup */}
+      <AlertPopup
+        open={showTrackingNotFoundPopup}
+        onOpenChange={setShowTrackingNotFoundPopup}
+        title="ບໍ່ພົບຂໍ້ມູນ"
+        message={`ບໍ່ມີ '${newProductData.trackingNumber}' ນີ້ໃນບະບົບ`}
+        type="error"
+      />
+
 
       {/* Mixed Status Popup */}
       <SuccessPopup

@@ -3,7 +3,7 @@ export interface Product {
   id: string;
   tracking_number: string;
   client_name: string;
-  client_phone: string;
+  client_phone: string | null;
   amount: number | null;
   currency: string | null;
   status: string;

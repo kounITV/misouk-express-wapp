@@ -105,7 +105,6 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
 
   const isFormValid = formData.tracking_number.trim() && 
                      formData.client_name.trim() && 
-                     formData.client_phone.trim() && 
                      formData.status;
                      // Amount and currency are now optional for all roles
 
@@ -151,7 +150,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             {/* Customer Phone */}
             <div>
               <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                {LABELS.CUSTOMER_PHONE} <span className="text-[#ff0000]">*</span>
+                {LABELS.CUSTOMER_PHONE}
               </label>
               <input
                 type="tel"
@@ -170,7 +169,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             {(userRole === 'super_admin' || userRole === 'lao_admin') && (
               <div>
                 <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                  {LABELS.PRICE} <span className="text-[#ff0000]">*</span>
+                  {LABELS.PRICE}
                 </label>
                 <input
                   type="number"
@@ -192,7 +191,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
             {(userRole === 'super_admin' || userRole === 'lao_admin') && (
               <div>
                 <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                  {LABELS.CURRENCY} <span className="text-[#ff0000]">*</span>
+                  {LABELS.CURRENCY}
                 </label>
                 <select
                   className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"

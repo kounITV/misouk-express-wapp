@@ -67,8 +67,9 @@ function validateOrderData(data: any): string | null {
   if (!data.client_name || typeof data.client_name !== 'string') {
     return 'client_name is required and must be a string';
   }
-  if (!data.client_phone || typeof data.client_phone !== 'string') {
-    return 'client_phone is required and must be a string';
+  // client_phone is optional - if provided, must be a string
+  if (data.client_phone !== undefined && data.client_phone !== null && typeof data.client_phone !== 'string') {
+    return 'client_phone must be a string if provided';
   }
   
   // Amount is optional - if provided, must be a positive number or null

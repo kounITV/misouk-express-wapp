@@ -150,17 +150,11 @@ export const normalizeProduct = (p: ApiProduct): Product => ({
 export const validateForm = (form: FormData, userRole?: string | null): boolean => {
   const baseValidation = Boolean(
     form.productCode.trim() &&
-    form.senderName.trim() &&
-    form.senderPhone.trim()
+    form.senderName.trim()
   );
   
-  // For Thai Admin, amount and currency are optional
-  if (userRole === 'thai_admin') {
-    return baseValidation;
-  }
-  
-  // For other roles, amount and currency are required
-  return baseValidation && Boolean(form.amount.trim() && form.currency.trim());
+  // Amount and currency are now optional for all roles
+  return baseValidation;
 };
 
 // Reset form helper

@@ -128,9 +128,13 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
     }
   };
 
-  const isFormValid = formData.tracking_number.trim() && 
-                     formData.client_name.trim() && 
-                     formData.client_phone.trim();
+  const isFormValid = (() => {
+    const baseValidation = formData.tracking_number.trim() && 
+                          formData.client_name.trim();
+    
+    
+    return baseValidation;
+  })();
 
   if (!permissions.canCreate) {
     return null; // Don't render if user can't create
@@ -171,7 +175,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
                 {canUserCreateField('client_phone', userRole) && (
                   <div>
                     <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                      ເບີໂທລູກຄ້າ <span className="text-[#ff0000]">*</span>
+                      ເບີໂທລູກຄ້າ
                     </label>
                     <input
                       type="tel"
@@ -242,7 +246,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
                   {canUserCreateField('amount', userRole) && (
                     <div>
                       <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                        {LABELS.PRICE} <span className="text-[#ff0000]">*</span>
+                        {LABELS.PRICE}
                       </label>
                       <input
                         type="number"
@@ -264,7 +268,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
                   {canUserCreateField('currency', userRole) && (
                     <div>
                       <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                        {LABELS.CURRENCY} <span className="text-[#ff0000]">*</span>
+                        {LABELS.CURRENCY}
                       </label>
                       <select
                         className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
