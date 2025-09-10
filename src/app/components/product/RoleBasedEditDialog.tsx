@@ -29,7 +29,7 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
     tracking_number: '',
     client_name: '',
     client_phone: null as string | null,
-    amount: null as string | null,
+    amount: '' as string,
     currency: 'LAK',
     status: 'AT_THAI_BRANCH',
     is_paid: false
@@ -49,7 +49,7 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
         tracking_number: product.tracking_number,
         client_name: product.client_name,
         client_phone: product.client_phone ?? null,
-        amount: product.amount?.toString() || null,
+        amount: product.amount?.toString() || '',
         currency: product.currency || 'LAK',
         status: product.status,
         is_paid: product.is_paid || false
@@ -255,9 +255,19 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
       if (canUserEditField('status', userRole)) {
         updatedProduct.status = formData.status;
       }
+      // if (canUserEditField('amount', userRole)) {
+      //   if (formData.amount && formData.amount.trim() !== '') {
+      //     updatedProduct.amount = parseFloat(formData.amount);
+      //   } else {
+      //     delete (updatedProduct as any).amount;
+      //   }
+      // } else {
+      //   delete (updatedProduct as any).amount;
+      // }
       if (canUserEditField('amount', userRole)) {
-        if (formData.amount && formData.amount.trim() !== '') {
-          updatedProduct.amount = parseFloat(formData.amount);
+        const parsedAmount = parseFloat(formData.amount || '');
+        if (!isNaN(parsedAmount)) {
+          updatedProduct.amount = parsedAmount;
         } else {
           delete (updatedProduct as any).amount;
         }

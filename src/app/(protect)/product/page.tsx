@@ -201,7 +201,49 @@ const ProductRow = memo(({
       </td>
       {/* ລຫັດ */}
       <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
-        {product.tracking_number}
+        <div className="relative group">
+          <span 
+            className="cursor-pointer hover:underline transition-all duration-200 select-none"
+            onClick={async (event) => {
+              try {
+                await navigator.clipboard.writeText(product.tracking_number);
+                // Show success feedback
+                const element = event.target as HTMLElement;
+                if (element) {
+                  const originalText = element.textContent;
+                  element.textContent = 'ຄັດລອກແລ້ວ!';
+                  element.className = 'cursor-pointer text-green-600 font-medium select-none';
+                  setTimeout(() => {
+                    element.textContent = originalText;
+                    element.className = 'cursor-pointer hover:underline transition-all duration-200 text-blue-600 font-medium select-none';
+                  }, 1500);
+                }
+              } catch (err) {
+                console.error('Failed to copy:', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = product.tracking_number;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+              }
+            }}
+            title="ຄລິກເພື່ອຄັດລອກ"
+          >
+            {product.tracking_number}
+          </span>
+          
+          {/* Enhanced Tooltip */}
+          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-50 shadow-lg">
+            <div className="text-center">
+              <div className="font-medium text-white">{product.tracking_number}</div>
+              <div className="text-gray-300 text-xs mt-1">ຄລິກເພື່ອຄັດລອກ</div>
+            </div>
+            {/* Arrow */}
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+          </div>
+        </div>
       </td>
       {/* ເບີໂທ */}
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -252,6 +294,7 @@ const ProductRow = memo(({
             onStatusUpdate={async (status) => await onStatusUpdate(product, status)}
             align="end"
             isLastItems={isLastItems}
+            currentStatus={product.status}
           />
         )}
       </td>
@@ -278,6 +321,7 @@ export default function ProductManagementPage() {
   const [showMixedStatusPopup, setShowMixedStatusPopup] = useState<boolean>(false);
   const [showErrorPopup, setShowErrorPopup] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [showCopySuccess, setShowCopySuccess] = useState<boolean>(false);
 
   const [itemsPerPage, setItemsPerPage] = useState<number>(DEFAULT_ITEMS_PER_PAGE);
   const [searchTerm, setSearchTerm] = useState<string>("");
@@ -370,8 +414,14 @@ export default function ProductManagementPage() {
 
       if (!res.ok) {
         const errorText = await res.text();
-        console.error(`Fetch products failed: ${res.status}`, errorText);
-        throw new Error(`Fetch products failed: ${res.status}`);
+        console.error('=== API REQUEST FAILED ===');
+        console.error('Status:', res.status);
+        console.error('Status Text:', res.statusText);
+        console.error('Response Headers:', Object.fromEntries(res.headers.entries()));
+        console.error('Response Body:', errorText);
+        console.error('Request URL:', url);
+        console.error('=== END API REQUEST FAILED ===');
+        throw new Error(`API request failed: ${res.status} - ${res.statusText}`);
       }
 
       const responseText = await res.text();
@@ -398,7 +448,16 @@ export default function ProductManagementPage() {
         setPagination(data.pagination);
       }
     } catch (err) {
-      console.error(err);
+      console.error('=== FETCH PRODUCTS ERROR ===');
+      console.error('Error details:', err);
+      console.error('Error message:', err instanceof Error ? err.message : 'Unknown error');
+      console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      console.error('=== END FETCH PRODUCTS ERROR ===');
+      
+      // Show user-friendly error message
+      setErrorMessage(`ບໍ່ສາມາດໂຫຼດຂໍ້ມູນ: ${err instanceof Error ? err.message : 'ເກີດຂໍ້ຜິດພາດທີ່ບໍ່ຮູ້ສາເຫດ'}`);
+      setShowErrorPopup(true);
+      
       // Mock data for development - using orders structure
       const mockProducts: Product[] = Array.from({ length: 3 }, (_, i) => ({
         id: `a9906737-85ee-47fe-aeb0-b4805fe3ce7${i}`,
@@ -829,6 +888,12 @@ export default function ProductManagementPage() {
 
   // Handle status update
   const handleStatusUpdate = useCallback(async (product: Product, newStatus: string) => {
+    console.log('=== STATUS UPDATE DEBUG ===');
+    console.log('Product:', product);
+    console.log('New Status:', newStatus);
+    console.log('User Role:', userRole);
+    console.log('=== END STATUS UPDATE DEBUG ===');
+    
     const token = AuthService.getStoredToken();
     if (!token) throw new Error("No token");
 
@@ -839,9 +904,13 @@ export default function ProductManagementPage() {
     const requestBody: any = {
       tracking_number: product.tracking_number,
       client_name: product.client_name,
-      client_phone: product.client_phone,
       status: apiStatus // Use converted status
     };
+
+    // Only include client_phone if it's not empty
+    if (product.client_phone && product.client_phone.trim() !== '') {
+      requestBody.client_phone = product.client_phone.trim();
+    }
 
     // Only include amount, currency, and is_paid based on user role permissions
     if (userRole !== 'thai_admin' && product.amount !== null && product.amount !== undefined) {
@@ -893,7 +962,7 @@ export default function ProductManagementPage() {
       const friendlyMessage = getUserFriendlyErrorMessage(result);
       throw new Error(friendlyMessage);
     }
-  }, [pagination.current_page, itemsPerPage]);
+  }, [pagination.current_page, itemsPerPage, userRole]);
 
   // Handle bulk status update
   const handleBulkStatusUpdate = useCallback(async (selectedProductIds: string[], newStatus: string) => {
@@ -913,9 +982,13 @@ export default function ProductManagementPage() {
             id: product.id,
             tracking_number: product.tracking_number,
             client_name: product.client_name,
-            client_phone: product.client_phone,
             status: apiStatus // Use converted status
           };
+
+          // Only include client_phone if it's not empty
+          if (product.client_phone && product.client_phone.trim() !== '') {
+            orderUpdate.client_phone = product.client_phone.trim();
+          }
 
           // Only include amount, currency, and is_paid based on user role permissions
           if (userRole !== 'thai_admin' && product.amount !== null && product.amount !== undefined) {
@@ -1009,6 +1082,8 @@ export default function ProductManagementPage() {
     // Debug: Log what's being sent to the API
     console.log('=== EDIT REQUEST DEBUG ===');
     console.log('User Role:', userRole);
+    console.log('Updated Product:', updatedProduct);
+    console.log('Product ID:', updatedProduct.id);
     console.log('Request Body:', requestBody);
     console.log('API Endpoint:', `${apiEndpoints.orders}/${updatedProduct.id}`);
     console.log('=== END EDIT REQUEST DEBUG ===');
@@ -1507,6 +1582,16 @@ export default function ProductManagementPage() {
               message={errorMessage}
               autoCloseTimer={5000}
               showTimer={true}
+            />
+
+            {/* Copy Success Popup */}
+            <SuccessPopup
+              open={showCopySuccess}
+              onOpenChange={setShowCopySuccess}
+              title="ສຳເລັດ!"
+              message="ຄັດລອກລະຫັດຕິດຕາມສຳເລັດແລ້ວ"
+              autoCloseTimer={2000}
+              showTimer={false}
             />
 
           </div>

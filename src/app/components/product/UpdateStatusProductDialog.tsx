@@ -182,11 +182,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       // Check if tracking number exists in the system
       console.log('=== TRACKING NUMBER CHECK DEBUG ===');
       console.log('Checking tracking number:', newProductData.trackingNumber);
-      console.log('API URL:', `/api/orders?search=${encodeURIComponent(newProductData.trackingNumber)}&limit=1`);
+      console.log('API URL:', `${apiEndpoints.orders}/tracking/${encodeURIComponent(newProductData.trackingNumber)}`);
       console.log('Token available:', !!AuthService.getStoredToken());
       console.log('Token preview:', AuthService.getStoredToken()?.substring(0, 20) + '...');
       
-      const response = await fetch(`/api/orders?search=${encodeURIComponent(newProductData.trackingNumber)}&limit=1`, {
+      const response = await fetch(`${apiEndpoints.orders}/tracking/${encodeURIComponent(newProductData.trackingNumber)}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -200,10 +200,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       if (response.ok) {
         const data = await response.json();
         console.log('API Response data:', data);
-        console.log('Orders found:', data.data?.length || 0);
-        if (data.data && data.data.length > 0) {
+        console.log('Success:', data.success);
+        console.log('Message:', data.message);
+        if (data.success && data.data) {
           // Tracking number found - populate form with existing data
-          const existingProduct = data.data[0];
+          const existingProduct = data.data;
           console.log('Found existing product:', existingProduct);
           
           setNewProductData(prev => ({
@@ -449,14 +450,22 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             id: product.id,
             tracking_number: product.tracking_number,
             client_name: product.client_name,
-            client_phone: product.client_phone,
             status: formData.newStatus
           };
 
+          // Only include client_phone if it's not empty
+          if (product.client_phone && product.client_phone.trim() !== '') {
+            orderUpdate.client_phone = product.client_phone.trim();
+          }
+
           // Only include amount, currency, and is_paid for non-thai_admin roles
           if (userRole !== 'thai_admin') {
-            orderUpdate.amount = product.amount || 0;
-            orderUpdate.currency = product.currency;
+            // Only include amount if it has a valid numeric value
+            if (product.amount !== null && product.amount !== undefined && !isNaN(Number(product.amount))) {
+              orderUpdate.amount = Number(product.amount);
+            }
+            // Always include currency and is_paid
+            orderUpdate.currency = product.currency || 'LAK';
             orderUpdate.is_paid = formData.isPaid;
           }
 
@@ -466,7 +475,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
       console.log('Updating products with data:', updateData);
 
-      const response = await fetch('/api/orders/bulk', {
+      const response = await fetch(apiEndpoints.ordersBulk, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

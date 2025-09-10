@@ -11,6 +11,7 @@ interface EnhancedActionsDropdownProps {
   onStatusUpdate: (status: string) => Promise<void>;
   align?: 'start' | 'end';
   isLastItems?: boolean; // New prop to determine if this is one of the last items
+  currentStatus?: string; // Current status of the product
 }
 
 export const EnhancedActionsDropdown: React.FC<EnhancedActionsDropdownProps> = ({
@@ -18,7 +19,8 @@ export const EnhancedActionsDropdown: React.FC<EnhancedActionsDropdownProps> = (
   onDelete,
   onStatusUpdate,
   align = 'end',
-  isLastItems = false
+  isLastItems = false,
+  currentStatus
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showStatusSubmenu, setShowStatusSubmenu] = useState(false);
@@ -38,6 +40,19 @@ export const EnhancedActionsDropdown: React.FC<EnhancedActionsDropdownProps> = (
   ];
 
   const handleStatusSelection = (status: string, label: string) => {
+    // Check if product has already left Thai branch
+    const hasLeftThaiBranch = currentStatus === 'EXIT_THAI_BRANCH' || 
+                             currentStatus === 'AT_LAO_BRANCH' || 
+                             currentStatus === 'COMPLETED';
+    
+    if (hasLeftThaiBranch) {
+      setErrorMessage('ບໍ່ສາມາດແກ້ໄຂລາຍການທີ່ອອກຈາກສາຂາໄທແລ້ວ');
+      setShowErrorPopup(true);
+      setIsOpen(false);
+      setShowStatusSubmenu(false);
+      return;
+    }
+
     setSelectedStatus(status);
     setSelectedStatusLabel(label);
     setShowConfirmation(true);

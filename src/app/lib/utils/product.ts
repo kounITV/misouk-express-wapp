@@ -114,37 +114,55 @@ export const convertStatusFromAPI = (apiStatus: string): string => {
 };
 
 // Data normalization
-export const normalizeProduct = (p: ApiProduct): Product => ({
-  id: p.id ?? p._id ?? crypto.randomUUID(),
-  tracking_number: p.tracking_number ?? "",
-  client_name: p.client_name ?? "",
-  client_phone: p.client_phone ?? "",
-  amount: p.amount ?? null,
-  currency: p.currency ?? null,
-  status: convertStatusFromAPI(p.status ?? '') || DEFAULT_STATUS, // Convert API status to UI status
-  is_paid: p.is_paid ?? false,
-  created_by: p.created_by ?? "",
-  created_at: p.created_at ?? new Date().toISOString(),
-  updated_at: p.updated_at,
-  deleted_at: p.deleted_at ?? null,
-  creator: p.creator ? {
-    id: p.creator.id ?? "",
-    username: p.creator.username ?? "",
-    firstname: p.creator.firstname ?? "",
-    lastname: p.creator.lastname ?? "",
-    gender: p.creator.gender ?? "",
-    phone: p.creator.phone ?? "",
-    role_id: p.creator.role_id ?? "",
-    role: {
-      id: p.creator.role?.id ?? "",
-      name: p.creator.role?.name ?? "",
-      description: p.creator.role?.description ?? ""
-    },
-    created_at: p.creator.created_at ?? new Date().toISOString(),
-    updated_at: p.creator.updated_at ?? new Date().toISOString(),
-    deleted_at: p.creator.deleted_at ?? null
-  } : undefined,
-});
+export const normalizeProduct = (p: ApiProduct): Product => {
+  // Debug: Log the raw API product data to see what fields are available
+  console.log('=== NORMALIZE PRODUCT DEBUG ===');
+  console.log('Raw API product:', p);
+  console.log('Available ID fields:', { id: p.id, _id: p._id });
+  console.log('=== END NORMALIZE PRODUCT DEBUG ===');
+
+  // Try to find the ID from various possible fields
+  let productId = p.id ?? p._id;
+  
+  // If no ID found, this is a problem - we need a real ID from the API
+  if (!productId) {
+    console.error('No ID found in API product data:', p);
+    // For now, we'll still generate a UUID but this should be fixed
+    productId = crypto.randomUUID();
+  }
+
+  return {
+    id: productId,
+    tracking_number: p.tracking_number ?? "",
+    client_name: p.client_name ?? "",
+    client_phone: p.client_phone ?? "",
+    amount: p.amount ?? null,
+    currency: p.currency ?? null,
+    status: convertStatusFromAPI(p.status ?? '') || DEFAULT_STATUS, // Convert API status to UI status
+    is_paid: p.is_paid ?? false,
+    created_by: p.created_by ?? "",
+    created_at: p.created_at ?? new Date().toISOString(),
+    updated_at: p.updated_at,
+    deleted_at: p.deleted_at ?? null,
+    creator: p.creator ? {
+      id: p.creator.id ?? "",
+      username: p.creator.username ?? "",
+      firstname: p.creator.firstname ?? "",
+      lastname: p.creator.lastname ?? "",
+      gender: p.creator.gender ?? "",
+      phone: p.creator.phone ?? "",
+      role_id: p.creator.role_id ?? "",
+      role: {
+        id: p.creator.role?.id ?? "",
+        name: p.creator.role?.name ?? "",
+        description: p.creator.role?.description ?? ""
+      },
+      created_at: p.creator.created_at ?? new Date().toISOString(),
+      updated_at: p.creator.updated_at ?? new Date().toISOString(),
+      deleted_at: p.creator.deleted_at ?? null
+    } : undefined,
+  };
+};
 
 // Form validation
 export const validateForm = (form: FormData, userRole?: string | null): boolean => {
