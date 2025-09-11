@@ -2,13 +2,36 @@
 
 import React, { memo, useState, useEffect } from 'react';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { PRODUCT_TEXT, LABELS, PLACEHOLDERS, STATUS_OPTIONS, CURRENCY_OPTIONS, BUTTONS } from "@/lib/constants/text";
+import { PRODUCT_TEXT, LABELS, PLACEHOLDERS, STATUS_OPTIONS, CURRENCY_OPTIONS, PAYMENT_OPTIONS, BUTTONS } from "@/lib/constants/text";
 //import { Product } from "@/app/types/product";
 import { Product } from "../../types/product";
 import { apiEndpoints } from "@/lib/config";
 import { AuthService } from "@/lib/auth-service";
 import SuccessPopup from "../ui/success-popup";
 import AlertPopup from "../ui/alert-popup";
+
+// Helper function to handle API error responses
+const handleApiError = async (response: Response) => {
+  const errorText = await response.text();
+  const specificStatusCodes = [400, 402, 403, 404, 409];
+  
+  try {
+    const errorResult = JSON.parse(errorText);
+    if (errorResult.message) {
+      return errorResult.message;
+    }
+  } catch {
+    // JSON parsing failed, continue to status code check
+  }
+  
+  // If no message from API and it's a specific status code, show fallback message
+  if (specificStatusCodes.includes(response.status)) {
+    return 'ລະບົບຂັດຂ້ອງ, ກະລຸນາລອງໃໝ່';
+  }
+  
+  // For other status codes, show the original error
+  return `ຜິດພາດ ${response.status}: ${errorText}`;
+};
 
 interface FormData {
   productCode: string;
@@ -19,6 +42,7 @@ interface FormData {
   currency: string;
   serviceType: string;
   status: string;
+  isPaid: boolean;
 }
 
 interface ProductDialogProps {
@@ -57,7 +81,7 @@ const ProductDialog = memo(({
   // Local state for products added through this dialog
   const [dialogProducts, setDialogProducts] = useState<Product[]>([]);
   const [isApproving, setIsApproving] = useState(false);
-  
+
   // Popup states
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showAlertPopup, setShowAlertPopup] = useState(false);
@@ -80,7 +104,7 @@ const ProductDialog = memo(({
     }
   }, [open]);
 
-  const handleInputChange = (field: keyof FormData, value: string) => {
+  const handleInputChange = (field: keyof FormData, value: string | boolean) => {
     onFormChange({ ...form, [field]: value });
   };
 
@@ -109,14 +133,14 @@ const ProductDialog = memo(({
 
   const saveEditing = () => {
     if (!editingProductId) return;
-    
-    
-    setDialogProducts(prev => prev.map(product => 
-      product.id === editingProductId 
+
+
+    setDialogProducts(prev => prev.map(product =>
+      product.id === editingProductId
         ? { ...product, ...editingData }
         : product
     ));
-    
+
     setEditingProductId(null);
     setEditingData({});
   };
@@ -137,18 +161,18 @@ const ProductDialog = memo(({
   // Handle form submission and add to local dialog products
   const handleSubmit = () => {
     if (!isFormValid) return;
-    
-    
+
+
     // Check if product with same code already exists
     const existingProduct = dialogProducts.find(
       product => product.tracking_number === form.productCode
     );
-    
+
     if (existingProduct) {
       showAlert('ສິນຄ້ານີ້ມີໃນຕາຕະລາງແລ້ວ ກະລຸນາເລືອກລະຫັດອື່ນ', 'warning');
       return;
     }
-    
+
     // Create new product from form data
     const newProduct: Product = {
       id: crypto.randomUUID(),
@@ -158,7 +182,7 @@ const ProductDialog = memo(({
       amount: form.amount ? parseFloat(form.amount) : null,
       currency: form.currency,
       status: form.status,
-      is_paid: false,
+      is_paid: form.isPaid,
       created_by: '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -168,7 +192,7 @@ const ProductDialog = memo(({
 
     // Add to local dialog products
     setDialogProducts(prev => [newProduct, ...prev]);
-    
+
     // Clear only Product Code and Price fields
     onFormChange({
       ...form,
@@ -180,14 +204,14 @@ const ProductDialog = memo(({
   // Handle approve button - send all products to API
   const handleApprove = async () => {
     if (dialogProducts.length === 0) return;
-    
+
     // Check if user is authenticated
     const token = AuthService.getStoredToken();
     if (!token) {
       showAlert('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ', 'warning');
       return;
     }
-    
+
     setIsApproving(true);
 
     try {
@@ -198,7 +222,7 @@ const ProductDialog = memo(({
             id: crypto.randomUUID(), // Add required UUID
             tracking_number: product.tracking_number,
             client_name: product.client_name,
-            //client_phone: product.client_phone,
+            client_phone: product.client_phone,
             status: product.status
           };
 
@@ -206,12 +230,12 @@ const ProductDialog = memo(({
           if (userRole !== 'thai_admin') {
             // Validate amount - database has precision 10, scale 2 (max 99,999,999.99)
             const amount = product.amount || 0;
-            
+
             orderData.amount = amount; // Send as number, not string
             orderData.currency = product.currency;
-            orderData.is_paid = false;
+            orderData.is_paid = product.is_paid;
           }
-          
+
           return orderData;
         })
       };
@@ -245,14 +269,14 @@ const ProductDialog = memo(({
           if (result.success) {
             // Show success popup
             setShowSuccessPopup(true);
-            
+
             // Update parent component with new data for real-time updates
             if (onProductsUpdate && result.data) {
-              const createdProducts = Array.isArray(result.data) ? result.data : 
-                                    result.data.orders ? result.data.orders : [];
+              const createdProducts = Array.isArray(result.data) ? result.data :
+                result.data.orders ? result.data.orders : [];
               onProductsUpdate(createdProducts);
             }
-            
+
             // Close dialog and reset after success popup is shown
             setTimeout(() => {
               onOpenChange(false);
@@ -260,7 +284,15 @@ const ProductDialog = memo(({
               onReset();
             }, 2000); // Auto-close after 2 seconds
           } else {
-            showAlert(result.message || 'ບໍ່ສາມາດເພີ່ມສິນຄ້າໄດ້', 'error', 'ຜິດພາດ');
+            // Handle API error response
+            let errorMessage = result.message || 'ບໍ່ສາມາດເພີ່ມສິນຄ້າໄດ້';
+
+            // If there are specific errors, show them
+            if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
+              errorMessage = result.errors.join('\n');
+            }
+
+            showAlert(errorMessage, 'error', 'ຜິດພາດ');
           }
         } catch (parseError) {
           console.error('Error parsing JSON response:', parseError);
@@ -268,7 +300,24 @@ const ProductDialog = memo(({
         }
       } else {
         console.error('API error:', response.status, responseText);
-        showAlert(`${response.status} ${response.statusText}\n\n${responseText}`, 'error', 'ຜິດພາດ');
+
+        // Try to parse error response to get message
+        let errorMessage = `${response.status} ${response.statusText}`;
+        try {
+          const errorResult = JSON.parse(responseText);
+          if (errorResult.message) {
+            errorMessage = errorResult.message;
+            // If there are specific errors, show them
+            if (errorResult.errors && Array.isArray(errorResult.errors) && errorResult.errors.length > 0) {
+              errorMessage += '\n' + errorResult.errors.join('\n');
+            }
+          }
+        } catch (parseError) {
+          // If parsing fails, use the raw response text
+          errorMessage += `\n\n${responseText}`;
+        }
+
+        showAlert(errorMessage, 'error', 'ຜິດພາດ');
       }
     } catch (error) {
       console.error('Network error:', error);
@@ -291,30 +340,31 @@ const ProductDialog = memo(({
               {PRODUCT_TEXT.PRODUCT_INFO}
             </h2>
           </div>
-          <br/>
+          <br />
           <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8 h-full">
             {/* Column 1 - Form Section */}
             <div className="flex flex-col">
               <div className="border-2 border-dashed border-[#cccccc] p-3 sm:p-6 rounded-lg bg-[#ffffff] flex-1">
                 <div className="space-y-4">
                   {/* Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
-                      {LABELS.STATUS}
-                    </label>
-                    <select
-                      className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96]"
-                      value={form.status}
-                      onChange={(e) => handleInputChange('status', e.target.value)}
-                    >
-                      <option value="">{PLACEHOLDERS.SELECT_STATUS}</option>
-                      <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
-                      <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
-                      <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
-                      <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
-                    </select>
-                  </div>
-
+                  {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+                    <div>
+                      <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
+                        {LABELS.STATUS}
+                      </label>
+                      <select
+                        className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96]"
+                        value={form.status}
+                        onChange={(e) => handleInputChange('status', e.target.value)}
+                      >
+                        <option value="">{PLACEHOLDERS.SELECT_STATUS}</option>
+                        <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
+                        <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
+                        <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                        <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                      </select>
+                    </div>
+                  )}
                   {/* Product Code */}
                   <div>
                     <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
@@ -404,6 +454,26 @@ const ProductDialog = memo(({
                     </div>
                   )}
 
+                  {/* Payment Status - Only for super_admin and lao_admin */}
+                  {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+                    <div>
+                      <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
+                        {LABELS.PAYMENT_STATUS}
+                      </label>
+                      <select
+                        className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96]"
+                        value={form.isPaid.toString()}
+                        onChange={(e) => handleInputChange('isPaid', e.target.value === 'true')}
+                      >
+                        {PAYMENT_OPTIONS.map(option => (
+                          <option key={option.value.toString()} value={option.value.toString()}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="flex gap-3 pt-4">
                     <button
@@ -436,7 +506,7 @@ const ProductDialog = memo(({
 
             {/* Column 2 - Table Section */}
             <div className="bg-[#ffffff] rounded-lg overflow-hidden border border-[#e9ecef] h-full flex flex-col">
-              
+
               {/* Table Structure - Always Visible with Scroll */}
               <div className="flex-1 overflow-y-auto">
                 <table className="w-full">
@@ -461,13 +531,13 @@ const ProductDialog = memo(({
                       <tr>
                         <td colSpan={userRole === 'super_admin' || userRole === 'lao_admin' ? 7 : 5} className="px-3 py-12">
                           <div className="flex flex-col items-center justify-center">
-                            <img 
-                              src="/product-empty.png" 
-                              alt="No products" 
+                            <img
+                              src="/product-empty.png"
+                              alt="No products"
                               className="w-24 h-24 mb-4 opacity-50"
                             />
                             <p className="text-sm text-gray-500 text-center">
-                              ບໍ່ມີຂໍ້ມູນສິນຄ້າ<br/>
+                              ບໍ່ມີຂໍ້ມູນສິນຄ້າ<br />
                               ກະລຸນາເພີ່ມສິນຄ້າກ່ອນ
                             </p>
                           </div>
@@ -480,28 +550,28 @@ const ProductDialog = memo(({
                         return (
                           <tr key={product.id} className="hover:bg-[#f8f9fa]">
                             <td className="px-3 py-2 text-xs text-[#495057]">{index + 1}</td>
-                            
+
                             {/* Customer Name */}
                             <td className="px-3 py-2 text-xs text-[#495057]">
                               {isEditing ? (
                                 <input
                                   type="text"
                                   value={editingData.client_name || ''}
-                                  onChange={(e) => setEditingData({...editingData, client_name: e.target.value})}
+                                  onChange={(e) => setEditingData({ ...editingData, client_name: e.target.value })}
                                   className="w-full px-1 py-1 text-xs border border-gray-300 rounded"
                                 />
                               ) : (
                                 product.client_name
                               )}
                             </td>
-                            
+
                             {/* Product Code */}
                             <td className="px-3 py-2 text-xs">
                               {isEditing ? (
                                 <input
                                   type="text"
                                   value={editingData.tracking_number || ''}
-                                  onChange={(e) => setEditingData({...editingData, tracking_number: e.target.value})}
+                                  onChange={(e) => setEditingData({ ...editingData, tracking_number: e.target.value })}
                                   className="w-full px-1 py-1 text-xs border border-gray-300 rounded"
                                 />
                               ) : (
@@ -510,7 +580,7 @@ const ProductDialog = memo(({
                                 </span>
                               )}
                             </td>
-                            
+
                             {/* Phone */}
                             <td className="px-3 py-2 text-xs text-[#495057]">
                               {isEditing ? (
@@ -519,7 +589,7 @@ const ProductDialog = memo(({
                                   value={editingData.client_phone || ''}
                                   onChange={(e) => {
                                     const value = e.target.value.replace(/[^0-9]/g, '');
-                                    setEditingData({...editingData, client_phone: value});
+                                    setEditingData({ ...editingData, client_phone: value });
                                   }}
                                   className="w-full px-1 py-1 text-xs border border-gray-300 rounded"
                                 />
@@ -527,7 +597,7 @@ const ProductDialog = memo(({
                                 product.client_phone || '-'
                               )}
                             </td>
-                            
+
                             {/* Price - Only for super_admin and lao_admin */}
                             {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                               <td className="px-3 py-2 text-xs text-[#495057]">
@@ -537,7 +607,7 @@ const ProductDialog = memo(({
                                     min="0"
                                     step="0.01"
                                     value={editingData.amount || ''}
-                                    onChange={(e) => setEditingData({...editingData, amount: parseFloat(e.target.value) || 0})}
+                                    onChange={(e) => setEditingData({ ...editingData, amount: parseFloat(e.target.value) || 0 })}
                                     className="w-full px-1 py-1 text-xs border border-gray-300 rounded"
                                   />
                                 ) : (
@@ -545,14 +615,14 @@ const ProductDialog = memo(({
                                 )}
                               </td>
                             )}
-                            
+
                             {/* Currency - Only for super_admin and lao_admin */}
                             {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                               <td className="px-3 py-2 text-xs text-[#495057]">
                                 {isEditing ? (
                                   <select
                                     value={editingData.currency || ''}
-                                    onChange={(e) => setEditingData({...editingData, currency: e.target.value})}
+                                    onChange={(e) => setEditingData({ ...editingData, currency: e.target.value })}
                                     className="w-full px-1 py-1 text-xs border border-gray-300 rounded"
                                   >
                                     <option value="LAK">ກີບ</option>
@@ -563,7 +633,7 @@ const ProductDialog = memo(({
                                 )}
                               </td>
                             )}
-                            
+
                             {/* Actions */}
                             <td className="px-3 py-2 text-xs">
                               {isEditing ? (
@@ -640,7 +710,7 @@ const ProductDialog = memo(({
           </div>
         </div>
       </DialogContent>
-      
+
       {/* Success Popup */}
       <SuccessPopup
         open={showSuccessPopup}
@@ -648,7 +718,7 @@ const ProductDialog = memo(({
         title="ສຳເລັດ!"
         message="ໄດ້ເພີ່ມສິນຄ້າສຳເລັດແລ້ວ"
       />
-      
+
       {/* Alert Popup */}
       <AlertPopup
         open={showAlertPopup}
@@ -657,7 +727,7 @@ const ProductDialog = memo(({
         message={alertConfig.message}
         type={alertConfig.type}
       />
-      
+
       {/* Delete Confirmation Dialog */}
       <AlertPopup
         open={showDeleteConfirm}

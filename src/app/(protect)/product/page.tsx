@@ -323,6 +323,29 @@ export default function ProductManagementPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [showCopySuccess, setShowCopySuccess] = useState<boolean>(false);
 
+  // Helper function to handle API error responses
+  const handleApiError = async (response: Response) => {
+    const errorText = await response.text();
+    const specificStatusCodes = [400, 402, 403, 404, 409];
+    
+    try {
+      const errorResult = JSON.parse(errorText);
+      if (errorResult.message) {
+        return errorResult.message;
+      }
+    } catch {
+      // JSON parsing failed, continue to status code check
+    }
+    
+    // If no message from API and it's a specific status code, show fallback message
+    if (specificStatusCodes.includes(response.status)) {
+      return 'ລະບົບຂັດຂ້ອງ, ກະລຸນາລອງໃໝ່';
+    }
+    
+    // For other status codes, show the original error
+    return `ຜິດພາດ ${response.status}: ${errorText}`;
+  };
+
   const [itemsPerPage, setItemsPerPage] = useState<number>(DEFAULT_ITEMS_PER_PAGE);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -344,6 +367,7 @@ export default function ProductManagementPage() {
     currency: "LAK",
     serviceType: "send_money",
     status: "EXIT_THAI_BRANCH",
+    isPaid: false,
   });
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -459,37 +483,43 @@ export default function ProductManagementPage() {
       setShowErrorPopup(true);
       
       // Mock data for development - using orders structure
-      const mockProducts: Product[] = Array.from({ length: 3 }, (_, i) => ({
-        id: `a9906737-85ee-47fe-aeb0-b4805fe3ce7${i}`,
-        tracking_number: i === 0 ? "545" : i === 1 ? "5423543" : "123",
-        client_name: "koun",
-        client_phone: "43243255555",
-        amount: i === 2 ? null : 100,
-        currency: i === 2 ? null : "LAK",
-        status: "AT_THAI_BRANCH",
-        is_paid: false,
-        created_by: "d6a58ee7-94b6-4324-bb06-36785318d871",
-        created_at: "2025-08-18T15:20:33.486Z",
-        updated_at: "2025-08-18T15:20:33.486Z",
-        deleted_at: null,
-        creator: {
-          id: "d6a58ee7-94b6-4324-bb06-36785318d871",
-          username: "admin",
-          firstname: "admin",
-          lastname: "admin",
-          gender: "male",
-          phone: "12345678",
-          role_id: "a14e09ef-bd24-4e02-b3cc-d92aa4224177",
-          role: {
-            id: "a14e09ef-bd24-4e02-b3cc-d92aa4224177",
-            name: "super_admin",
-            description: "Super Administrator with full access to all resources"
-          },
-          created_at: "2025-07-14T13:39:43.371Z",
-          updated_at: "2025-07-14T13:39:43.371Z",
-          deleted_at: null
-        }
-      }));
+      const mockProducts: Product[] = Array.from({ length: 3 }, (_, i) => {
+        const baseDate = new Date('2025-08-18T15:20:33.486Z');
+        const createdDate = new Date(baseDate.getTime() + (i * 60000)); // Add i minutes
+        const updatedDate = new Date(createdDate.getTime() + (i * 30000)); // Add i*30 seconds
+        
+        return {
+          id: `a9906737-85ee-47fe-aeb0-b4805fe3ce7${i}`,
+          tracking_number: i === 0 ? "545" : i === 1 ? "5423543" : "123",
+          client_name: "koun",
+          client_phone: "43243255555",
+          amount: i === 2 ? null : 100,
+          currency: i === 2 ? null : "LAK",
+          status: "AT_THAI_BRANCH",
+          is_paid: false,
+          created_by: "d6a58ee7-94b6-4324-bb06-36785318d871",
+          created_at: createdDate.toISOString(),
+          updated_at: updatedDate.toISOString(),
+          deleted_at: null,
+          creator: {
+            id: "d6a58ee7-94b6-4324-bb06-36785318d871",
+            username: "admin",
+            firstname: "admin",
+            lastname: "admin",
+            gender: "male",
+            phone: "12345678",
+            role_id: "a14e09ef-bd24-4e02-b3cc-d92aa4224177",
+            role: {
+              id: "a14e09ef-bd24-4e02-b3cc-d92aa4224177",
+              name: "super_admin",
+              description: "Super Administrator with full access to all resources"
+            },
+            created_at: "2025-07-14T13:39:43.371Z",
+            updated_at: "2025-07-14T13:39:43.371Z",
+            deleted_at: null
+          }
+        };
+      });
       setProducts(mockProducts);
       setPagination({
         total: 5000,
@@ -635,6 +665,7 @@ export default function ProductManagementPage() {
         currency: "LAK",
         serviceType: "send_money",
         status: "AT_THAI_BRANCH",
+        isPaid: false,
       });
       await fetchProducts(pagination.current_page, itemsPerPage);
     } catch (e) {
@@ -660,15 +691,30 @@ export default function ProductManagementPage() {
         credentials: 'omit',
       });
 
-      if (!res.ok) {
-        const errBody = await res.text();
-        throw new Error(`Delete failed ${res.status}: ${errBody}`);
+      if (res.ok) {
+        // Success - parse response
+        const result = await res.json();
+        if (result.success) {
+          setProductToDelete(null);
+          await fetchProducts(pagination.current_page, itemsPerPage);
+          // Show success message using existing popup pattern
+          setErrorMessage('ລຶບສິນຄ້າສຳເລັດແລ້ວ');
+          setShowErrorPopup(true);
+        } else {
+          // API returned success: false
+          setErrorMessage(result.message || 'ບໍ່ສາມາດລຶບສິນຄ້າໄດ້');
+          setShowErrorPopup(true);
+        }
+      } else {
+        // HTTP error - use helper function to handle specific status codes
+        const errorMsg = await handleApiError(res);
+        setErrorMessage(errorMsg);
+        setShowErrorPopup(true);
       }
-
-      setProductToDelete(null);
-      await fetchProducts(pagination.current_page, itemsPerPage);
     } catch (e) {
       console.error(e);
+      setErrorMessage('ຜິດພາດໃນການເຊື່ອມຕໍ່ກັບເຊີເວີ: ' + e);
+      setShowErrorPopup(true);
     } finally {
       setDeleting(false);
     }
@@ -680,11 +726,12 @@ export default function ProductManagementPage() {
       productCode: product.tracking_number,
       senderName: product.client_name,
       receiverName: "",
-      senderPhone: product.client_phone,
+      senderPhone: product.client_phone || "",
       amount: product.amount?.toString() || "",
       currency: product.currency || "LAK",
       serviceType: "send_money",
       status: product.status,
+      isPaid: product.is_paid,
     });
     setOpenCreate(true);
   };
@@ -815,7 +862,7 @@ export default function ProductManagementPage() {
       orderData = {
         tracking_number: data.tracking_number,
         client_name: data.client_name,
-        client_phone: data.client_phone,
+        client_phone: data.client_phone || null,
         status: data.status || 'EXIT_THAI_BRANCH'
       };
     } else {
@@ -823,7 +870,7 @@ export default function ProductManagementPage() {
       orderData = {
         tracking_number: data.tracking_number,
         client_name: data.client_name,
-        client_phone: data.client_phone,
+        client_phone: data.client_phone || null,
         status: data.status || 'AT_THAI_BRANCH',
         is_paid: false
       };
@@ -848,7 +895,7 @@ export default function ProductManagementPage() {
         id: result.data?.id || crypto.randomUUID(),
         tracking_number: data.tracking_number,
         client_name: data.client_name,
-        client_phone: data.client_phone,
+        client_phone: data.client_phone || null,
         amount: data.amount || null,
         currency: data.currency || 'LAK',
         status: data.status || 'AT_THAI_BRANCH',

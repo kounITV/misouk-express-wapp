@@ -38,6 +38,17 @@ const STATUS_OPTIONS = [
   { value: 'COMPLETED', label: 'ລູກຄ້າຮັບເອົາສິນຄ້າ' }
 ];
 
+// Role-specific status options
+const getStatusOptionsForRole = (userRole: string) => {
+  if (userRole === 'thai_admin') {
+    return [
+      { value: 'AT_THAI_BRANCH', label: 'ສິນຄ້າຮອດໄທ' },
+      { value: 'EXIT_THAI_BRANCH', label: 'ສິ້ນຄ້າອອກຈາກໄທ' }
+    ];
+  }
+  return STATUS_OPTIONS;
+};
+
 const PAYMENT_OPTIONS = [
   { value: true, label: 'ຊຳລະແລ້ວ' },
   { value: false, label: 'ຍັງບໍ່ໄດ້ຊຳລະ' }
@@ -83,8 +94,36 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
   const [isCheckingTracking, setIsCheckingTracking] = useState(false);
   const [trackingDataFound, setTrackingDataFound] = useState(false);
   const [showTrackingNotFoundPopup, setShowTrackingNotFoundPopup] = useState(false);
+  const [existingProductData, setExistingProductData] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editFormData, setEditFormData] = useState<Partial<Product>>({});
+  const [inlineEditingId, setInlineEditingId] = useState<string | null>(null);
+  const [inlineEditData, setInlineEditData] = useState<Partial<Product>>({});
 
-    // Initialize form when dialog opens
+  // Helper function to handle API error responses
+  const handleApiError = async (response: Response) => {
+    const errorText = await response.text();
+    const specificStatusCodes = [400, 402, 403, 404, 409];
+    
+    try {
+      const errorResult = JSON.parse(errorText);
+      if (errorResult.message) {
+        return errorResult.message;
+      }
+    } catch {
+      // JSON parsing failed, continue to status code check
+    }
+    
+    // If no message from API and it's a specific status code, show fallback message
+    if (specificStatusCodes.includes(response.status)) {
+      return 'ລະບົບຂັດຂ້ອງ, ກະລຸນາລອງໃໝ່';
+    }
+    
+    // For other status codes, show the original error
+    return `ຜິດພາດ ${response.status}: ${errorText}`;
+  };
+
+  // Initialize form when dialog opens
   useEffect(() => {
     if (open) {
       if (selectedProducts.length === 0) {
@@ -100,7 +139,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         const firstProduct = selectedProducts[0];
         if (firstProduct) {
           const allSameStatus = selectedProducts.every(product => product.status === firstProduct.status);
-          
+
           if (allSameStatus) {
             // All products have the same status - use that status
             setFormData({
@@ -157,7 +196,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
   const isNewProductValid = () => {
     const baseValidation = newProductData.trackingNumber &&
       newProductData.clientName;
-    
+
     // Amount, currency, and isPaid are now optional for all roles
     return baseValidation;
   };
@@ -167,6 +206,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     // Reset tracking data found state when tracking number changes
     if (field === 'trackingNumber') {
       setTrackingDataFound(false);
+      setExistingProductData(null);
     }
   };
 
@@ -179,13 +219,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
     setIsCheckingTracking(true);
     try {
-      // Check if tracking number exists in the system
-      console.log('=== TRACKING NUMBER CHECK DEBUG ===');
-      console.log('Checking tracking number:', newProductData.trackingNumber);
-      console.log('API URL:', `${apiEndpoints.orders}/tracking/${encodeURIComponent(newProductData.trackingNumber)}`);
-      console.log('Token available:', !!AuthService.getStoredToken());
-      console.log('Token preview:', AuthService.getStoredToken()?.substring(0, 20) + '...');
-      
+
       const response = await fetch(`${apiEndpoints.orders}/tracking/${encodeURIComponent(newProductData.trackingNumber)}`, {
         method: 'GET',
         headers: {
@@ -194,19 +228,15 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         },
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response status text:', response.statusText);
-
       if (response.ok) {
         const data = await response.json();
-        console.log('API Response data:', data);
-        console.log('Success:', data.success);
-        console.log('Message:', data.message);
         if (data.success && data.data) {
           // Tracking number found - populate form with existing data
           const existingProduct = data.data;
-          console.log('Found existing product:', existingProduct);
-          
+
+          // Store the existing product data with its original ID
+          setExistingProductData(existingProduct);
+
           setNewProductData(prev => ({
             ...prev,
             clientPhone: existingProduct.client_phone || '',
@@ -215,7 +245,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             currency: existingProduct.currency || 'LAK',
             isPaid: existingProduct.is_paid || false
           }));
-          
+
           console.log('Updated form data with:', {
             clientPhone: existingProduct.client_phone || '',
             clientName: existingProduct.client_name || '',
@@ -223,9 +253,9 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             currency: existingProduct.currency || 'LAK',
             isPaid: existingProduct.is_paid || false
           });
-          
+
           setTrackingDataFound(true);
-          
+
           // No popup when data is found - just populate the form
         } else {
           // Tracking number not found
@@ -233,14 +263,12 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
           setTrackingDataFound(false);
         }
       } else {
-        console.log('API request failed with status:', response.status);
-        const errorText = await response.text();
-        console.log('Error response:', errorText);
-        setErrorMessage('ຜິດພາດໃນການກວດສອບລະຫັດສິນຄ້າ');
+        // HTTP error - use helper function to handle specific status codes
+        const errorMsg = await handleApiError(response);
+        setErrorMessage(errorMsg);
         setShowErrorPopup(true);
       }
     } catch (error) {
-      console.error('Error checking tracking number:', error);
       setErrorMessage('ຜິດພາດໃນການກວດສອບລະຫັດສິນຄ້າ');
       setShowErrorPopup(true);
     } finally {
@@ -250,12 +278,32 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
   const handleAddProduct = () => {
     if (!isNewProductValid()) {
-      console.log('New product validation failed');
       return;
     }
 
-    console.log('Adding new product:', newProductData);
-    const newProduct: Product = {
+    // Check if tracking number already exists in addedProducts or selectedProducts
+    const trackingNumber = newProductData.trackingNumber;
+    const existingInAdded = addedProducts.some(p => p.tracking_number === trackingNumber);
+    const existingInSelected = selectedProducts.some(p => p.tracking_number === trackingNumber);
+    
+    if (existingInAdded || existingInSelected) {
+      setErrorMessage(`ລະຫັດສິນຄ້ານີ້ ${trackingNumber} ມີແລ້ວ`);
+      setShowErrorPopup(true);
+      return;
+    }
+
+    // Use existing product data if available, otherwise create new product
+    const newProduct: Product = existingProductData ? {
+      ...existingProductData,
+      // Update with form data
+      client_name: newProductData.clientName,
+      client_phone: newProductData.clientPhone,
+      amount: userRole === 'thai_admin' ? existingProductData.amount : parseFloat(newProductData.amount),
+      currency: userRole === 'thai_admin' ? existingProductData.currency : newProductData.currency,
+      is_paid: userRole === 'thai_admin' ? existingProductData.is_paid : newProductData.isPaid,
+      // Keep original timestamps and creator info
+    } : {
+      // Create new product if no existing data
       id: crypto.randomUUID(),
       tracking_number: newProductData.trackingNumber,
       client_name: newProductData.clientName,
@@ -273,7 +321,6 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
     setAddedProducts(prev => {
       const updated = [...prev, newProduct];
-      console.log('Added products list updated:', updated);
       return updated;
     });
 
@@ -286,6 +333,63 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       currency: userRole === 'thai_admin' ? '' : 'LAK',
       isPaid: userRole === 'thai_admin' ? false : false
     });
+    setExistingProductData(null);
+    setTrackingDataFound(false);
+  };
+
+  const handleEditProduct = (productId: string) => {
+    // Find the product to edit from added products
+    const productToEdit = addedProducts.find(p => p.id === productId);
+    if (productToEdit) {
+      setInlineEditingId(productId);
+      setInlineEditData({
+        client_name: productToEdit.client_name,
+        client_phone: productToEdit.client_phone,
+        amount: productToEdit.amount,
+        currency: productToEdit.currency,
+        is_paid: productToEdit.is_paid
+      });
+    }
+  };
+
+  const handleSaveInlineEdit = () => {
+    if (!inlineEditingId) return;
+
+    // Update the product in addedProducts
+    setAddedProducts(prev => prev.map(product =>
+      product.id === inlineEditingId
+        ? { ...product, ...inlineEditData }
+        : product
+    ));
+
+    // Reset inline editing state
+    setInlineEditingId(null);
+    setInlineEditData({});
+  };
+
+  const handleCancelInlineEdit = () => {
+    setInlineEditingId(null);
+    setInlineEditData({});
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingProduct) return;
+
+    // Update the product in addedProducts
+    setAddedProducts(prev => prev.map(product =>
+      product.id === editingProduct.id
+        ? { ...product, ...editFormData }
+        : product
+    ));
+
+    // Reset editing state
+    setEditingProduct(null);
+    setEditFormData({});
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+    setEditFormData({});
   };
 
   const handleRemoveProduct = (productId: string) => {
@@ -301,109 +405,13 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       currency: userRole === 'thai_admin' ? '' : 'LAK',
       isPaid: userRole === 'thai_admin' ? false : false
     });
+    setExistingProductData(null);
+    setTrackingDataFound(false);
+    setEditingProduct(null);
+    setEditFormData({});
+    setInlineEditingId(null);
+    setInlineEditData({});
   };
-
-  // const handleUpdate = async () => {
-  //   if (!isFormValid() && addedProducts.length === 0) {
-  //     if (selectedProducts.length === 0) {
-  //       setErrorMessage('ກະລຸນາເລືອກສະຖານະປະຈຸບັນ ແລະ ສະຖານະໃໝ່ ຫຼື ເພີ່ມສິນຄ້າ');
-  //     } else if (formData.currentStatus === 'MIXED_STATUS') {
-  //       setErrorMessage('ບໍ່ສາມາດອັບເດດສະຖານະໄດ້ ເນື່ອງຈາກສິນຄ້າທີ່ເລືອກມີສະຖານະຕ່າງກັນ ກະລຸນາເລືອກສິນຄ້າທີ່ມີສະຖານະດຽວກັນ');
-  //     } else {
-  //       setErrorMessage('ກະລຸນາເລືອກສະຖານະໃໝ່ ຫຼື ເພີ່ມສິນຄ້າ');
-  //     }
-  //     setShowErrorPopup(true);
-  //     return;
-  //   }
-
-  //   const token = AuthService.getStoredToken();
-  //   if (!token) {
-  //     setErrorMessage('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ');
-  //     setShowErrorPopup(true);
-  //     return;
-  //   }
-
-  //   setIsUpdating(true);
-
-  //   try {
-  //     // Check if we have products to update
-  //     if (selectedProducts.length === 0) {
-  //       // When no products selected, just show success message
-  //       setShowSuccessPopup(true);
-  //       setIsUpdating(false);
-  //       return;
-  //     }
-
-  //     // Prepare the bulk update data based on user role
-  //     const updateData = {
-  //       orders: selectedProducts.map(product => {
-  //         const orderUpdate: any = {
-  //           id: product.id,
-  //           tracking_number: product.tracking_number,
-  //           client_name: product.client_name,
-  //           client_phone: product.client_phone,
-  //           status: formData.newStatus
-  //         };
-
-  //         // Only include amount, currency, and is_paid for non-thai_admin roles
-  //         if (userRole !== 'thai_admin') {
-  //           orderUpdate.amount = product.amount || 0;
-  //           orderUpdate.currency = product.currency;
-  //           orderUpdate.is_paid = formData.isPaid;
-  //         }
-
-  //         return orderUpdate;
-  //       })
-  //     };
-
-  //     console.log('Updating products with data:', updateData);
-
-  //     const response = await fetch(apiEndpoints.ordersBulk, {
-  //       method: 'PUT',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //         'Authorization': `Bearer ${token}`,
-  //         'Cache-Control': 'no-cache, no-store, must-revalidate',
-  //         'Pragma': 'no-cache',
-  //         'Expires': '0',
-  //       },
-  //       body: JSON.stringify(updateData)
-  //     });
-
-  //     console.log('Response status:', response.status);
-
-  //     if (response.ok) {
-  //       const result = await response.json();
-  //       console.log('Update result:', result);
-
-  //       if (result.success) {
-  //         setShowSuccessPopup(true);
-
-  //         // Close dialog after success
-  //         setTimeout(() => {
-  //           onOpenChange(false);
-  //           if (onUpdateSuccess) {
-  //             onUpdateSuccess();
-  //           }
-  //         }, 2000);
-  //       } else {
-  //         setErrorMessage(result.message || 'ບໍ່ສາມາດອັບເດດສະຖານະໄດ້');
-  //         setShowErrorPopup(true);
-  //       }
-  //     } else {
-  //       const errorText = await response.text();
-  //       console.error('API error:', response.status, errorText);
-  //       setErrorMessage(`ຜິດພາດ ${response.status}: ${errorText}`);
-  //       setShowErrorPopup(true);
-  //     }
-  //   } catch (error) {
-  //     console.error('Network error:', error);
-  //     setErrorMessage('ຜິດພາດໃນການເຊື່ອມຕໍ່ກັບເຊີເວີ: ' + error);
-  //     setShowErrorPopup(true);
-  //   } finally {
-  //     setIsUpdating(false);
-  //   }
-  // };
 
   const handleUpdate = async () => {
     if (!isFormValid()) {
@@ -428,22 +436,19 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     setIsUpdating(true);
 
     try {
-        // Check if we have products to update
-        if (selectedProducts.length === 0 && addedProducts.length === 0) {
-          // When no products selected and no new products added, show error
-          setErrorMessage('ກະລຸນາເລືອກສິນຄ້າຈາກຕາຕະລາງ ຫຼື ເພີ່ມສິນຄ້າໃໝ່');
-          setShowErrorPopup(true);
-          setIsUpdating(false);
-          return;
-        }
+      // Check if we have products to update
+      if (selectedProducts.length === 0 && addedProducts.length === 0) {
+        // When no products selected and no new products added, show error
+        setErrorMessage('ກະລຸນາເລືອກສິນຄ້າຈາກຕາຕະລາງ ຫຼື ເພີ່ມສິນຄ້າໃໝ່');
+        setShowErrorPopup(true);
+        setIsUpdating(false);
+        return;
+      }
 
       // Prepare the bulk update data based on user role
       // Combine selected products and added products
       const allProducts = [...selectedProducts, ...addedProducts];
-      console.log('All products to update:', allProducts);
-      console.log('Selected products:', selectedProducts);
-      console.log('Added products:', addedProducts);
-      
+
       const updateData = {
         orders: allProducts.map(product => {
           const orderUpdate: any = {
@@ -473,8 +478,6 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         })
       };
 
-      console.log('Updating products with data:', updateData);
-
       const response = await fetch(apiEndpoints.ordersBulk, {
         method: 'PUT',
         headers: {
@@ -487,11 +490,8 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         body: JSON.stringify(updateData)
       });
 
-      console.log('Response status:', response.status);
-
       if (response.ok) {
         const result = await response.json();
-        console.log('Update result:', result);
 
         if (result.success) {
           setShowSuccessPopup(true);
@@ -508,9 +508,9 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
           setShowErrorPopup(true);
         }
       } else {
-        const errorText = await response.text();
-        console.error('API error:', response.status, errorText);
-        setErrorMessage(`ຜິດພາດ ${response.status}: ${errorText}`);
+        // HTTP error - use helper function to handle specific status codes
+        const errorMsg = await handleApiError(response);
+        setErrorMessage(errorMsg);
         setShowErrorPopup(true);
       }
     } catch (error) {
@@ -521,7 +521,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       setIsUpdating(false);
     }
   };
-  
+
   const handleCancel = () => {
     setFormData({
       currentStatus: '',
@@ -537,6 +537,12 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       isPaid: userRole === 'thai_admin' ? false : false
     });
     setAddedProducts([]);
+    setExistingProductData(null);
+    setTrackingDataFound(false);
+    setEditingProduct(null);
+    setEditFormData({});
+    setInlineEditingId(null);
+    setInlineEditData({});
     onOpenChange(false);
   };
 
@@ -562,24 +568,23 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                     ສະຖານະປະຈຸບັນ <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className={`w-full p-3 border border-gray-300 rounded-md ${
-                      selectedProducts.length === 0 
-                        ? 'bg-white text-gray-700' 
+                    className={`w-full p-3 border border-gray-300 rounded-md ${selectedProducts.length === 0
+                        ? 'bg-white text-gray-700'
                         : 'bg-gray-100 text-gray-700'
-                    }`}
+                      }`}
                     value={formData.currentStatus}
                     disabled={selectedProducts.length > 0}
                     onChange={(e) => setFormData(prev => ({ ...prev, currentStatus: e.target.value }))}
                   >
                     <option value="">
-                      {selectedProducts.length === 0 
-                        ? 'ກະລຸນາເລືອກສະຖານະທີ່ຕ້ອງການອັບເດດ' 
+                      {selectedProducts.length === 0
+                        ? 'ກະລຸນາເລືອກສະຖານະທີ່ຕ້ອງການອັບເດດ'
                         : formData.currentStatus === 'MIXED_STATUS'
-                        ? 'ສະຖານະຕ່າງກັນ (ບໍ່ສາມາດອັບເດດໄດ້)'
-                        : getStatusLabel(formData.currentStatus) || 'ກະລຸນາເລືອກ'
+                          ? 'ສະຖານະຕ່າງກັນ (ບໍ່ສາມາດອັບເດດໄດ້)'
+                          : getStatusLabel(formData.currentStatus) || 'ກະລຸນາເລືອກ'
                       }
                     </option>
-                    {selectedProducts.length === 0 && STATUS_OPTIONS.map((option) => (
+                    {selectedProducts.length === 0 && getStatusOptionsForRole(userRole || '').map((option) => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -598,7 +603,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                     onChange={(e) => handleInputChange('newStatus', e.target.value)}
                   >
                     <option value="">ກະລຸນາເລືອກ</option>
-                    {STATUS_OPTIONS.map(option => (
+                    {getStatusOptionsForRole(userRole || '').map(option => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>
@@ -627,6 +632,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                 )}
               </div>
             </div>
+
 
             {/* New Product Form Section */}
             <div className="mb-8">
@@ -804,19 +810,19 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ລາຄາ</th>
                           )}
                           {(userRole === 'super_admin' || userRole === 'lao_admin') && (
-                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ການຊຳລະ</th>
-                        )}
-                        {(userRole === 'super_admin' || userRole === 'lao_admin') && (
-                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ສະກຸນເງິນ</th>
-                        )}
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ການຊຳລະ</th>
+                          )}
+                          {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ສະກຸນເງິນ</th>
+                          )}
                           <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ຈັດການ</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                          {/* If no products */}
-  {addedProducts.length === 0 && selectedProducts.length === 0 ? (
-    <tr>
-      <td colSpan={userRole === 'super_admin' || userRole === 'lao_admin' ? 8 : 5} className="px-3 py-12">
+                        {/* If no products */}
+                        {addedProducts.length === 0 && selectedProducts.length === 0 ? (
+                          <tr>
+                            <td colSpan={userRole === 'super_admin' || userRole === 'lao_admin' ? 8 : 5} className="px-3 py-12">
                               <div className="flex flex-col items-center justify-center">
                                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
                                   <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -841,70 +847,163 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                             {addedProducts.map((product, index) => (
                               <tr key={`added-${product.id}`} className="hover:bg-gray-50">
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">{index + 1}</td>
-                                <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap overflow-x-auto max-w-[150px]">
-                                  {product.client_name}
+                                
+                                {/* Client Name - Editable */}
+                                <td className="px-3 py-3 text-sm whitespace-nowrap overflow-x-auto max-w-[150px]">
+                                  {inlineEditingId === product.id ? (
+                                    <input
+                                      type="text"
+                                      className="w-full p-1 border border-gray-300 rounded text-sm"
+                                      value={inlineEditData.client_name || product.client_name || ''}
+                                      onChange={(e) => setInlineEditData(prev => ({ ...prev, client_name: e.target.value }))}
+                                    />
+                                  ) : (
+                                    <span className="text-gray-900">{product.client_name}</span>
+                                  )}
                                 </td>
+                                
+                                {/* Tracking Number - Read-only */}
                                 <td className="px-3 py-3 text-sm whitespace-nowrap overflow-x-auto max-w-[150px]">
                                   <span className="text-blue-600 font-medium">{product.tracking_number}</span>
                                 </td>
+                                
+                                {/* Client Phone - Editable */}
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap overflow-x-auto max-w-[120px]">
-                                  {product.client_phone || '-'}
+                                  {inlineEditingId === product.id ? (
+                                    <input
+                                      type="tel"
+                                      className="w-full p-1 border border-gray-300 rounded text-sm"
+                                      value={inlineEditData.client_phone || product.client_phone || ''}
+                                      onChange={(e) => setInlineEditData(prev => ({ ...prev, client_phone: e.target.value }))}
+                                    />
+                                  ) : (
+                                    <span>{product.client_phone || '-'}</span>
+                                  )}
                                 </td>
+                                
+                                {/* Amount - Editable for super_admin and lao_admin */}
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                                   <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                    {product.amount ? product.amount.toLocaleString() : '-'}
+                                    {inlineEditingId === product.id ? (
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        className="w-full p-1 border border-gray-300 rounded text-sm"
+                                        value={inlineEditData.amount || product.amount || ''}
+                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                                      />
+                                    ) : (
+                                      <span>{product.amount ? product.amount.toLocaleString() : '-'}</span>
+                                    )}
                                   </td>
                                 )}
+                                
+                                {/* Payment Status - Editable for super_admin and lao_admin */}
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                                   <td className="px-3 py-3 text-sm whitespace-nowrap">
-                                    <span
-                                      className={`px-2 py-1 rounded-full text-xs font-medium ${product.is_paid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                        }`}
-                                    >
-                                      {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                                    </span>
+                                    {inlineEditingId === product.id ? (
+                                      <select
+                                        className="w-full p-1 border border-gray-300 rounded text-sm"
+                                        value={inlineEditData.is_paid ? 'true' : 'false'}
+                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, is_paid: e.target.value === 'true' }))}
+                                      >
+                                        <option value="false">ຍັງບໍ່ຊຳລະ</option>
+                                        <option value="true">ຊຳລະແລ້ວ</option>
+                                      </select>
+                                    ) : (
+                                      <span
+                                        className={`px-2 py-1 rounded-full text-xs font-medium ${product.is_paid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                          }`}
+                                      >
+                                        {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
+                                      </span>
+                                    )}
                                   </td>
                                 )}
+                                
+                                {/* Currency - Editable for super_admin and lao_admin */}
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                                   <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                    {product.currency === 'LAK'
-                                      ? 'ກີບ'
-                                      : product.currency === 'THB'
-                                        ? 'ບາດ'
-                                        : product.currency}
+                                    {inlineEditingId === product.id ? (
+                                      <select
+                                        className="w-full p-1 border border-gray-300 rounded text-sm"
+                                        value={inlineEditData.currency || product.currency || 'LAK'}
+                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, currency: e.target.value }))}
+                                      >
+                                        <option value="LAK">ກີບ</option>
+                                        <option value="THB">ບາດ</option>
+                                      </select>
+                                    ) : (
+                                      <span>
+                                        {product.currency === 'LAK'
+                                          ? 'ກີບ'
+                                          : product.currency === 'THB'
+                                            ? 'ບາດ'
+                                            : product.currency}
+                                      </span>
+                                    )}
                                   </td>
                                 )}
+                                
+                                {/* Actions */}
                                 <td className="px-3 py-3 text-sm flex items-center space-x-3 whitespace-nowrap">
-                                  {/* Edit button */}
-                                  <button
-                                    onClick={() => handleRemoveProduct(product.id)}
-                                    className="text-blue-600 hover:text-blue-800"
-                                    title="ແກ້ໄຂ"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"
-                                      />
-                                    </svg>
-                                  </button>
-                                  {/* Delete button */}
-                                  <button
-                                    onClick={() => handleRemoveProduct(product.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                    title="ລຶບ"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
+                                  {inlineEditingId === product.id ? (
+                                    <>
+                                      {/* Save button */}
+                                      <button
+                                        onClick={handleSaveInlineEdit}
+                                        className="text-green-600 hover:text-green-800"
+                                        title="ບັນທຶກ"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
+                                      </button>
+                                      {/* Cancel button */}
+                                      <button
+                                        onClick={handleCancelInlineEdit}
+                                        className="text-gray-600 hover:text-gray-800"
+                                        title="ຍົກເລີກ"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Edit button */}
+                                      <button
+                                        onClick={() => handleEditProduct(product.id)}
+                                        className="text-blue-600 hover:text-blue-800"
+                                        title="ແກ້ໄຂ"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"
+                                          />
+                                        </svg>
+                                      </button>
+                                      {/* Delete button */}
+                                      <button
+                                        onClick={() => handleRemoveProduct(product.id)}
+                                        className="text-red-600 hover:text-red-800"
+                                        title="ລຶບ"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                          />
+                                        </svg>
+                                      </button>
+                                    </>
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -952,215 +1051,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                           </>
                         )}
                       </tbody>
-
-
-
-
-                      {/* <tbody className="divide-y divide-gray-200">
-                        {addedProducts.length === 0 ? (
-                          <tr>
-                            <td colSpan={userRole === 'super_admin' || userRole === 'lao_admin' ? 8 : 5} className="px-3 py-12">
-                              <div className="flex flex-col items-center justify-center">
-                                <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                                  <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.500c-.77.833.192 2.5 1.732 2.5z" />
-                                  </svg>
-                                </div>
-                                <p className="text-sm text-gray-500 text-center">
-                                  ບໍ່ມີຂໍ້ມູນສິນຄ້າ<br/>
-                                  ກະລຸນາເພີ່ມສິນຄ້າໃໝ່
-                                </p>
-                              </div>
-                            </td>
-                          </tr>
-                        ) : (
-                          addedProducts.map((product, index) => (
-                            <tr key={product.id} className="hover:bg-gray-50">
-                              <td className="px-3 py-3 text-sm text-gray-900">{index + 1}</td>
-                              <td className="px-3 py-3 text-sm text-gray-900">{product.client_name}</td>
-                              <td className="px-3 py-3 text-sm">
-                                <span className="text-blue-600 font-medium">
-                                  {product.tracking_number}
-                                </span>
-                              </td>
-                              <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone || '-'}</td>
-                              <td className="px-3 py-3 text-sm text-gray-900">
-                                {product.amount ? product.amount.toLocaleString() : '-'}
-                              </td>
-                              <td className="px-3 py-3 text-sm">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  product.is_paid 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-3 text-sm text-gray-900">
-                                {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency}
-                              </td>
-                              <td className="px-3 py-3 text-sm">
-                                <button 
-                                  onClick={() => handleRemoveProduct(product.id)}
-                                  className="text-red-600 hover:text-red-800 text-sm"
-                                  title="ລຶບ"
-                                >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                      <tbody className="divide-y divide-gray-200">
-                      {selectedProducts.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="px-3 py-12">
-                            <div className="flex flex-col items-center justify-center">
-                              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                              </div>
-                              <p className="text-sm text-gray-600 text-center font-medium mb-2">
-                                ຍັງບໍ່ໄດ້ເລືອກສິນຄ້າ
-                              </p>
-                              <p className="text-xs text-gray-500 text-center">
-                                ບໍ່ມີສິນຄ້າທີ່ເລືອກເພື່ອອັບເດດສະຖານະ
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : (
-                        selectedProducts.map((product, index) => (
-                          <tr key={product.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-3 text-sm text-gray-900">{index + 1}</td>
-                            <td className="px-3 py-3 text-sm text-gray-900">{product.client_name}</td>
-                            <td className="px-3 py-3 text-sm">
-                              <span className="text-blue-600 font-medium">
-                                {product.tracking_number}
-                              </span>
-                            </td>
-                            <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone || '-'}</td>
-                            <td className="px-3 py-3 text-sm text-gray-900">
-                              {product.amount ? product.amount.toLocaleString() : '-'}
-                            </td>
-                            <td className="px-3 py-3 text-sm text-gray-900">
-                              {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency}
-                            </td>
-                            <td className="px-3 py-3 text-sm">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                product.is_paid 
-                                  ? 'bg-green-100 text-green-800' 
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                              </span>
-                            </td>
-                            <td className="px-3 py-3 text-sm">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                product.status === 'AT_THAI_BRANCH' ? 'bg-blue-100 text-blue-800' :
-                                product.status === 'EXIT_THAI_BRANCH' ? 'bg-yellow-100 text-yellow-800' :
-                                product.status === 'AT_LAO_BRANCH' ? 'bg-purple-100 text-purple-800' :
-                                'bg-green-100 text-green-800'
-                              }`}>
-                                {getStatusLabel(product.status)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody> */}
                     </table>
                   </div>
                 </div>
               </div>
             </div>
-
-            {/* Products Table Section */}
-            {/* <div>
-              <h2 className="text-lg font-medium text-gray-700 mb-4 bg-gray-100 p-3 rounded">
-                ຂໍ້ມູນສິນຄ້າທີ່ເລືອກ
-              </h2>
-              <div className="bg-white rounded-lg border border-gray-200 min-h-[400px] flex flex-col">
-                <div className="flex-1 overflow-y-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 sticky top-0 z-10">
-                      <tr>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-700">ລຳດັບ</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-700">ຊື່ລູກຄ້າ</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-700">ລະຫັດ</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-700">ເບີໂທ</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-700">ລາຄາ</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-700">ສະກຸນເງິນ</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-700">ການຊຳລະ</th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-700">ສະຖານະ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {selectedProducts.length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="px-3 py-12">
-                            <div className="flex flex-col items-center justify-center">
-                              <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                                <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.314 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                              </div>
-                              <p className="text-sm text-gray-600 text-center font-medium mb-2">
-                                ຍັງບໍ່ໄດ້ເລືອກສິນຄ້າ
-                              </p>
-                              <p className="text-xs text-gray-500 text-center">
-                                ບໍ່ມີສິນຄ້າທີ່ເລືອກເພື່ອອັບເດດສະຖານະ
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      ) : (
-                        selectedProducts.map((product, index) => (
-                          <tr key={product.id} className="hover:bg-gray-50">
-                            <td className="px-3 py-3 text-sm text-gray-900">{index + 1}</td>
-                            <td className="px-3 py-3 text-sm text-gray-900">{product.client_name}</td>
-                            <td className="px-3 py-3 text-sm">
-                              <span className="text-blue-600 font-medium">
-                                {product.tracking_number}
-                              </span>
-                            </td>
-                            <td className="px-3 py-3 text-sm text-gray-900">{product.client_phone || '-'}</td>
-                            <td className="px-3 py-3 text-sm text-gray-900">
-                              {product.amount ? product.amount.toLocaleString() : '-'}
-                            </td>
-                            <td className="px-3 py-3 text-sm text-gray-900">
-                              {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency}
-                            </td>
-                            <td className="px-3 py-3 text-sm">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.is_paid
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                                }`}>
-                                {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                              </span>
-                            </td>
-                            <td className="px-3 py-3 text-sm">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${product.status === 'AT_THAI_BRANCH' ? 'bg-blue-100 text-blue-800' :
-                                  product.status === 'EXIT_THAI_BRANCH' ? 'bg-yellow-100 text-yellow-800' :
-                                    product.status === 'AT_LAO_BRANCH' ? 'bg-purple-100 text-purple-800' :
-                                      'bg-green-100 text-green-800'
-                                }`}>
-                                {getStatusLabel(product.status)}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div> */}
-
             {/* Bottom Action Buttons */}
             <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
               <button
@@ -1173,7 +1068,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
               <button
                 type="button"
                 onClick={handleUpdate}
-                 disabled={!isFormValid() || isUpdating}
+                disabled={!isFormValid() || isUpdating}
                 className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isUpdating ? 'ກຳລັງອັບເດດ...' : 'ອະນຸມັດ'}

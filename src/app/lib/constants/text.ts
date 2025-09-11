@@ -51,6 +51,12 @@ export const PRODUCT_TEXT = {
     THB: 'ບາດ',
   },
 
+  // Payment options
+  PAYMENT_OPTIONS: [
+    { value: false, label: 'ຍັງບໍ່ຊຳລະ' },
+    { value: true, label: 'ຊຳລະແລ້ວ' },
+  ],
+
   // Service type options
   SERVICE_TYPE_OPTIONS: {
     SEND_MONEY: 'ສົ່ງເງິນ',
@@ -98,6 +104,7 @@ export const LABELS = PRODUCT_TEXT.LABELS;
 export const PLACEHOLDERS = PRODUCT_TEXT.PLACEHOLDERS;
 export const STATUS_OPTIONS = PRODUCT_TEXT.STATUS_OPTIONS;
 export const CURRENCY_OPTIONS = PRODUCT_TEXT.CURRENCY_OPTIONS;
+export const PAYMENT_OPTIONS = PRODUCT_TEXT.PAYMENT_OPTIONS;
 export const SERVICE_TYPE_OPTIONS = PRODUCT_TEXT.SERVICE_TYPE_OPTIONS;
 export const BUTTONS = PRODUCT_TEXT.BUTTONS;
 export const MESSAGES = PRODUCT_TEXT.MESSAGES;

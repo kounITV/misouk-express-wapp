@@ -683,7 +683,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
       <AlertPopup
         open={showErrorPopup}
         onOpenChange={setShowErrorPopup}
-        title="ຜິດພາດ"
+        title="ຜິດພາດໄຳດ"
         message={errorMessage}
         type="error"
       />

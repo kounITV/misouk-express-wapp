@@ -73,6 +73,7 @@ export interface FormData {
   currency: string;
   serviceType: string;
   status: string;
+  isPaid: boolean;
 }
 
 export interface PaginationData {

@@ -62,6 +62,7 @@ export const DEFAULT_FORM_VALUES: FormData = {
   currency: "LAK",
   serviceType: "send_money",
   status: "AT_THAI_BRANCH",
+  isPaid: false,
 };
 
 // Constants
@@ -85,7 +86,8 @@ export const formatAmount = (amount: number | null): string => {
 };
 
 export const formatCurrency = (currency: string | null): string => {
-  return currency || '-';
+  if (!currency) return '-';
+  return currency === 'LAK' ? 'ກີບ' : currency === 'THB' ? 'ບາດ' : currency;
 };
 
 export const getStatusName = (status: string): string => {
