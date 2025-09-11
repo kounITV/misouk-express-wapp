@@ -21,4 +21,6 @@ export const apiEndpoints = {
   // Orders endpoints
   orders: `${config.API_URL}/orders`,
   ordersBulk: `${config.API_URL}/orders/bulk`,
+  // Report endpoints
+  reportSummary: `${config.API_URL}/orders/report/summary`,
 };
