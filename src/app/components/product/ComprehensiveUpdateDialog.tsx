@@ -68,6 +68,7 @@ interface ComprehensiveUpdateDialogProps {
   onOpenChange: (open: boolean) => void;
   selectedProducts: Product[];
   onUpdateSuccess?: () => void;
+  userRole?: string | null;
 }
 
 interface UpdateFormData {
@@ -92,6 +93,17 @@ const STATUS_OPTIONS = [
   { value: 'COMPLETED', label: 'ລູກຄ້າຮັບເອົາສິນຄ້າ' }
 ];
 
+// Role-specific status options
+const getStatusOptionsForRole = (userRole: string) => {
+  if (userRole === 'thai_admin') {
+    return [
+      { value: 'AT_THAI_BRANCH', label: 'ສິນຄ້າຮອດໄທ' },
+      { value: 'EXIT_THAI_BRANCH', label: 'ສິ້ນຄ້າອອກຈາກໄທ' }
+    ];
+  }
+  return STATUS_OPTIONS;
+};
+
 const PAYMENT_OPTIONS = [
   { value: true, label: 'ຊຳລະແລ້ວ' },
   { value: false, label: 'ຍັງບໍ່ໄດ້ຊຳລະ' }
@@ -100,14 +112,14 @@ const PAYMENT_OPTIONS = [
 const CURRENCY_OPTIONS = [
   { value: 'LAK', label: 'ກີບ (LAK)' },
   { value: 'THB', label: 'ບາດ (THB)' },
-  { value: 'USD', label: 'ໂດລາ (USD)' }
 ];
 
 export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps> = ({
   open,
   onOpenChange,
   selectedProducts,
-  onUpdateSuccess
+  onUpdateSuccess,
+  userRole
 }) => {
   // State for status update (Row 1)
   const [statusUpdateData, setStatusUpdateData] = useState<UpdateFormData>({
@@ -211,6 +223,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
           currency: newProductData.currency,
           status: statusUpdateData.newStatus || 'EXIT_THAI_BRANCH',
           is_paid: newProductData.isPaid,
+          remark: '',
           created_by: '',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -406,7 +419,7 @@ export const ComprehensiveUpdateDialog: React.FC<ComprehensiveUpdateDialogProps>
                     onChange={(e) => handleStatusUpdateChange('newStatus', e.target.value)}
                   >
                     <option value="">ກະລຸນາເລືອກ</option>
-                    {STATUS_OPTIONS.map(option => (
+                    {getStatusOptionsForRole(userRole || '').map(option => (
                       <option key={option.value} value={option.value}>
                         {option.label}
                       </option>

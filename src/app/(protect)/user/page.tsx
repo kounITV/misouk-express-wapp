@@ -67,6 +67,7 @@ const getRoleName = (role: any): string => {
     case 'super_admin': return 'ຊູບເປີແອັດມິນ';
     case 'thai_admin': return 'ແອັດມິນສາຂາໄທ';
     case 'lao_admin': return 'ແອັດມິນສາຂາລາວ';
+    case 'normal_user': return 'ແອັດມິນທົ່ວໄປ';
     default: return String(roleName || '');
   }
 };
@@ -612,6 +613,9 @@ export default function UserManagementPage() {
                         <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                           ເບີໂທ
                         </th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
+                          ສິດການນຳໃຊ້
+                        </th>
 
                         <th className="px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider">
                           ຈັດການ
@@ -621,7 +625,7 @@ export default function UserManagementPage() {
                     <tbody className="bg-white divide-y divide-gray-200">
                       {loading && (
                         <tr>
-                          <td className="px-6 py-12 text-center" colSpan={7}>
+                          <td className="px-6 py-12 text-center" colSpan={8}>
                             <div className="flex flex-col items-center justify-center space-y-4">
                               <div className="relative">
                                 <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -633,7 +637,7 @@ export default function UserManagementPage() {
                       )}
                       {!loading && users.length === 0 && (
                         <tr>
-                          <td className="px-6 py-12 text-center" colSpan={7}>
+                          <td className="px-6 py-12 text-center" colSpan={8}>
                             <div className="flex flex-col items-center justify-center space-y-4">
                               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
                                 <Users className="w-8 h-8 text-gray-400" />
@@ -662,6 +666,9 @@ export default function UserManagementPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {user.phone}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {getRoleName(user.role)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {loadingEditId === user.id ? (
@@ -727,18 +734,18 @@ export default function UserManagementPage() {
                   </div>
                   <div>
                     <Label htmlFor="firstname" className="text-black">ຊື່</Label>
-                    <Input id="firstname" placeholder="ປ້ອນຊື່.." value={form.firstname} onChange={(e) => setForm({ ...form, firstname: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
+                    <Input id="firstname" placeholder="ປ້ອນຊື່.." value={form.firstname} onChange={(e) => setForm({ ...form, firstname: e.target.value })} className="text-black placeholder:text-[#818A91] focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                   <div>
                     <Label htmlFor="lastname" className="text-black">ນາມສະກຸນ</Label>
-                    <Input id="lastname" placeholder="ປ້ອນນາມສະກຸນ.." value={form.lastname} onChange={(e) => setForm({ ...form, lastname: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
+                    <Input id="lastname" placeholder="ປ້ອນນາມສະກຸນ.." value={form.lastname} onChange={(e) => setForm({ ...form, lastname: e.target.value })} className="text-black placeholder:text-[#818A91] focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                   <div>
                     <Label htmlFor="phone" className="text-black">ເບີໂທ</Label>
-                    <Input id="phone" placeholder="ປ້ອນເບີໂທ.." value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
+                    <Input id="phone" placeholder="ປ້ອນເບີໂທ.." value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="text-black placeholder:text-[#818A91] focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" />
                   </div>
                   <div>
-                    <Label htmlFor="role" className="text-black">ສິດຕາມສາຂາ</Label>
+                    <Label htmlFor="role" className="text-black">ສິດການນຳໃຊ້</Label>
                     <select
                       id="role"
                       className="mt-2 block w-full border border-gray-300 rounded-md p-2 text-black focus:ring-[#2E72D2] focus:border-[#2E72D2] focus:outline-none"
@@ -762,7 +769,7 @@ export default function UserManagementPage() {
                       placeholder={usernameExists ? "ຊື່ຜູ້ໃຊ້ນີ້ມີຢູ່ແລ້ວ" : "ປ້ອນຊື່ຜູ້ໃຊ້.."} 
                       value={form.username} 
                       onChange={(e) => handleUsernameChange(e.target.value)} 
-                      className={`text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] ${
+                      className={`text-black placeholder:text-[#818A91] focus:ring-[#2E72D2] focus:border-[#2E72D2] ${
                         usernameExists 
                           ? 'border-red-500 focus:border-red-500 focus:ring-red-500 placeholder:text-red-400' 
                           : 'border-gray-300'
@@ -780,7 +787,7 @@ export default function UserManagementPage() {
                       placeholder="ປ້ອນລະຫັດ.." 
                       value={form.password} 
                       onChange={(e) => setForm({ ...form, password: e.target.value })} 
-                      className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" 
+                      className="text-black placeholder:text-[#818A91] focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" 
                     />
                   </div>
                   <div>
@@ -791,7 +798,7 @@ export default function UserManagementPage() {
                       placeholder="ປ້ອນລະຫັດຜ່ານຜູ້ໃຊ້.." 
                       value={form.confirmPassword} 
                       onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })} 
-                      className="text-black placeholder:text-gray-500 focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" 
+                      className="text-black placeholder:text-[#818A91] focus:ring-[#2E72D2] focus:border-[#2E72D2] border-gray-300" 
                     />
                   </div>
                   </div>

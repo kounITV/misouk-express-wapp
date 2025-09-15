@@ -43,6 +43,7 @@ interface FormData {
   serviceType: string;
   status: string;
   isPaid: boolean;
+  remark: string;
 }
 
 interface ProductDialogProps {
@@ -122,7 +123,8 @@ const ProductDialog = memo(({
       tracking_number: product.tracking_number,
       client_phone: product.client_phone,
       amount: product.amount,
-      currency: product.currency
+      currency: product.currency,
+      remark: product.remark
     });
   };
 
@@ -180,9 +182,10 @@ const ProductDialog = memo(({
       client_name: form.senderName,
       client_phone: form.senderPhone ? form.senderPhone : null,
       amount: form.amount ? parseFloat(form.amount) : null,
-      currency: form.currency,
+      currency: (form.currency && form.currency !== 'LAK') ? form.currency : null,
       status: form.status,
       is_paid: form.isPaid,
+      remark: form.remark || null,
       created_by: '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -193,11 +196,12 @@ const ProductDialog = memo(({
     // Add to local dialog products
     setDialogProducts(prev => [newProduct, ...prev]);
 
-    // Clear only Product Code and Price fields
+    // Clear Product Code, Price, and Remark fields
     onFormChange({
       ...form,
       productCode: "",
-      amount: ""
+      amount: "",
+      remark: ""
     });
   };
 
@@ -223,7 +227,8 @@ const ProductDialog = memo(({
             tracking_number: product.tracking_number,
             client_name: product.client_name,
             client_phone: product.client_phone,
-            status: product.status
+            status: product.status,
+            remark: product.remark
           };
 
           // Only include amount, currency, and is_paid for non-thai_admin roles
@@ -232,7 +237,12 @@ const ProductDialog = memo(({
             const amount = product.amount || 0;
 
             orderData.amount = amount; // Send as number, not string
-            orderData.currency = product.currency;
+            
+            // Only include currency if it has a value
+            if (product.currency && product.currency.trim()) {
+              orderData.currency = product.currency;
+            }
+            
             orderData.is_paid = product.is_paid;
           }
 
@@ -277,12 +287,9 @@ const ProductDialog = memo(({
               onProductsUpdate(createdProducts);
             }
 
-            // Close dialog and reset after success popup is shown
-            setTimeout(() => {
-              onOpenChange(false);
-              setDialogProducts([]);
-              onReset();
-            }, 2000); // Auto-close after 2 seconds
+            // Reset form but keep dialog open
+            setDialogProducts([]);
+            onReset();
           } else {
             // Handle API error response
             let errorMessage = result.message || 'ບໍ່ສາມາດເພີ່ມສິນຄ້າໄດ້';
@@ -360,8 +367,12 @@ const ProductDialog = memo(({
                         <option value="">{PLACEHOLDERS.SELECT_STATUS}</option>
                         <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
                         <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
-                        <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
-                        <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                        {(userRole as string) !== 'thai_admin' && (
+                          <>
+                            <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                            <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   )}
@@ -373,7 +384,7 @@ const ProductDialog = memo(({
                     <input
                       type="text"
                       placeholder={PLACEHOLDERS.ENTER_CODE}
-                      className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96]"
+                      className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96]"
                       value={form.productCode}
                       onChange={(e) => handleInputChange('productCode', e.target.value)}
                     />
@@ -388,7 +399,7 @@ const ProductDialog = memo(({
                       type="tel"
                       placeholder={PLACEHOLDERS.ENTER_PHONE}
                       pattern="[0-9]*"
-                      className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96]"
+                      className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96]"
                       value={form.senderPhone}
                       onChange={(e) => {
                         // Only allow numbers
@@ -406,7 +417,7 @@ const ProductDialog = memo(({
                     <input
                       type="text"
                       placeholder={PLACEHOLDERS.ENTER_NAME}
-                      className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96]"
+                      className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96]"
                       value={form.senderName}
                       onChange={(e) => handleInputChange('senderName', e.target.value)}
                     />
@@ -423,7 +434,7 @@ const ProductDialog = memo(({
                         placeholder={PLACEHOLDERS.ENTER_PRICE}
                         min="0"
                         step="0.01"
-                        className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96]"
+                        className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96]"
                         value={form.amount}
                         onChange={(e) => {
                           const value = parseFloat(e.target.value);
@@ -444,7 +455,7 @@ const ProductDialog = memo(({
                       </label>
                       <select
                         className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96]"
-                        value={form.currency}
+                        value={form.currency === 'LAK' ? '' : form.currency}
                         onChange={(e) => handleInputChange('currency', e.target.value)}
                       >
                         <option value="">{PLACEHOLDERS.SELECT_CURRENCY}</option>
@@ -473,6 +484,20 @@ const ProductDialog = memo(({
                       </select>
                     </div>
                   )}
+
+                  {/* Remark Field */}
+                  <div>
+                    <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
+                      ໝາຍເຫດ
+                    </label>
+                    <textarea
+                      className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96] placeholder-[#818A91] resize-none"
+                      value={form.remark}
+                      onChange={(e) => handleInputChange('remark', e.target.value)}
+                      placeholder="ໝາຍເຫດ (ສາມາດປະໄວ້ເປົ່າໄດ້)"
+                      rows={3}
+                    />
+                  </div>
 
                   {/* Action Buttons */}
                   <div className="flex gap-3 pt-4">
@@ -508,8 +533,8 @@ const ProductDialog = memo(({
             <div className="bg-[#ffffff] rounded-lg overflow-hidden border border-[#e9ecef] h-full flex flex-col">
 
               {/* Table Structure - Always Visible with Scroll */}
-              <div className="flex-1 overflow-y-auto">
-                <table className="w-full">
+              <div className="flex-1 overflow-y-auto overflow-x-auto max-w-full">
+                <table className="w-full min-w-[800px]">
                   <thead className="bg-[#F1F1F1] sticky top-0 z-10">
                     <tr>
                       <th className="px-3 py-2 text-left text-xs font-medium text-[#495057]">{LABELS.ROW_NUMBER}</th>
@@ -522,6 +547,7 @@ const ProductDialog = memo(({
                       {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                         <th className="px-3 py-2 text-left text-xs font-medium text-[#495057]">{LABELS.CURRENCY}</th>
                       )}
+                      <th className="px-3 py-2 text-left text-xs font-medium text-[#495057]">ໝາຍເຫດ</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-[#495057]">{LABELS.ACTIONS}</th>
                     </tr>
                   </thead>
@@ -529,7 +555,7 @@ const ProductDialog = memo(({
                     {dialogProducts.length === 0 ? (
                       // Empty state within table structure
                       <tr>
-                        <td colSpan={userRole === 'super_admin' || userRole === 'lao_admin' ? 7 : 5} className="px-3 py-12">
+                        <td colSpan={userRole === 'super_admin' || userRole === 'lao_admin' ? 8 : 6} className="px-3 py-12">
                           <div className="flex flex-col items-center justify-center">
                             <img
                               src="/product-empty.png"
@@ -576,7 +602,9 @@ const ProductDialog = memo(({
                                 />
                               ) : (
                                 <span className="text-[#007bff]">
-                                  {product.tracking_number}
+                                  {product.tracking_number.length > 8 
+                                    ? `${product.tracking_number.substring(0, 8)}...` 
+                                    : product.tracking_number}
                                 </span>
                               )}
                             </td>
@@ -633,6 +661,23 @@ const ProductDialog = memo(({
                                 )}
                               </td>
                             )}
+
+                            {/* Remark */}
+                            <td className="px-3 py-2 text-xs text-[#495057]">
+                              {isEditing ? (
+                                <textarea
+                                  value={editingData.remark || ''}
+                                  onChange={(e) => setEditingData({ ...editingData, remark: e.target.value })}
+                                  className="w-full px-1 py-1 text-xs border border-gray-300 rounded resize-none"
+                                  rows={2}
+                                  placeholder="ໝາຍເຫດ"
+                                />
+                              ) : (
+                                <div className="max-w-[150px] truncate" title={product.remark || ''}>
+                                  {product.remark || '-'}
+                                </div>
+                              )}
+                            </td>
 
                             {/* Actions */}
                             <td className="px-3 py-2 text-xs">

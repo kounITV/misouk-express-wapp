@@ -24,6 +24,149 @@ import { SuccessPopup } from "@/components/ui/success-popup";
 import { apiEndpoints } from "@/lib/config";
 import { getRolePermissions, normalizeRole } from "@/lib/utils/role-permissions";
 import { createOrder, CreateOrderData } from "@/lib/api/orders";
+import { useToast } from "@/components/ui/use-toast";
+import { Toaster } from "@/components/ui/toaster";
+
+// Simple Copy Component for tracking number (no tooltip)
+interface CopyTextProps {
+  text: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const CopyText: React.FC<CopyTextProps> = ({ text, children, className = "" }) => {
+  const { toast } = useToast();
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      console.log('Copying text:', text);
+      await navigator.clipboard.writeText(text);
+      console.log('Text copied successfully');
+      
+      // Show toast notification
+      toast({
+        title: "ຄັດລອກສຳເລັດ!",
+        description: `ລະຫັດ: ${text}`,
+        duration: 2000,
+      });
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      toast({
+        title: "ຜິດພາດ",
+        description: "ບໍ່ສາມາດຄັດລອກໄດ້",
+        variant: "destructive",
+        duration: 2000,
+      });
+    }
+  };
+
+  return (
+    <span 
+      className={`cursor-pointer hover:underline ${className}`}
+      onClick={handleCopy}
+      title="ຄັດລອກລະຫັດ"
+    >
+      {children}
+    </span>
+  );
+};
+
+// Copy Tooltip Component for remark (with tooltip)
+interface CopyTooltipProps {
+  text: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const CopyTooltip: React.FC<CopyTooltipProps> = ({ text, children, className = "" }) => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [tooltipTimeout, setTooltipTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (tooltipTimeout) {
+        clearTimeout(tooltipTimeout);
+      }
+    };
+  }, [tooltipTimeout]);
+
+  const handleMouseEnter = () => {
+    // Clear any existing timeout
+    if (tooltipTimeout) {
+      clearTimeout(tooltipTimeout);
+    }
+    
+    // Set a 3-second delay before showing tooltip
+    const timeout = setTimeout(() => {
+      setShowTooltip(true);
+    }, 3000);
+    
+    setTooltipTimeout(timeout);
+  };
+
+  const handleMouseLeave = () => {
+    // Clear the timeout if mouse leaves before 3 seconds
+    if (tooltipTimeout) {
+      clearTimeout(tooltipTimeout);
+      setTooltipTimeout(null);
+    }
+    setShowTooltip(false);
+  };
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      console.log('Copying text:', text);
+      await navigator.clipboard.writeText(text);
+      console.log('Text copied successfully');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+    }
+  };
+
+  return (
+    <div 
+      className={`relative inline-block ${className}`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {children}
+      {showTooltip && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg z-50 whitespace-nowrap">
+          <div className="flex items-center gap-2">
+            <span>{copied ? 'ຄັດລອກແລ້ວ!' : 'ຄັດລອກ'}</span>
+            <button
+              onClick={handleCopy}
+              className="text-white hover:text-gray-300 transition-colors"
+              title="ຄັດລອກ"
+            >
+              {copied ? (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              )}
+            </button>
+          </div>
+          {/* Arrow */}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Helper function to get user-friendly error messages
 const getUserFriendlyErrorMessage = (error: any): string => {
@@ -149,160 +292,6 @@ const DATE_FORMAT_OPTIONS = {
   second: '2-digit'
 };
 
-// Memoized table row component for better performance
-interface ProductRowProps {
-  product: Product;
-  index: number;
-  currentPage: number;
-  itemsPerPage: number;
-  loadingEditId: string | null;
-  isSelected: boolean;
-  onEdit: (product: Product) => void;
-  onDelete: (product: Product) => void;
-  onSelect: (productId: string) => void;
-  onStatusUpdate: (product: Product, status: string) => Promise<void>;
-  totalItems: number;
-}
-
-const ProductRow = memo(({
-  product,
-  index,
-  currentPage,
-  itemsPerPage,
-  loadingEditId,
-  isSelected,
-  onEdit,
-  onDelete,
-  onSelect,
-  onStatusUpdate,
-  totalItems
-}: ProductRowProps) => {
-  // Determine if this is one of the last 3 items to show dropdown above
-  const isLastItems = index >= totalItems - 3;
-
-  return (
-    <tr key={product.id} className="hover:bg-gray-50">
-      {/* Checkbox */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <input
-          type="checkbox"
-          className="rounded"
-          checked={isSelected}
-          onChange={() => onSelect(product.id)}
-        />
-      </td>
-      {/* ລຳດັບ */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {((currentPage - 1) * itemsPerPage) + index + 1}
-      </td>
-      {/* ຊື່ລູກຄ້າ */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {product.client_name}
-      </td>
-      {/* ລຫັດ */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
-        <div className="relative group">
-          <span 
-            className="cursor-pointer hover:underline transition-all duration-200 select-none"
-            onClick={async (event) => {
-              try {
-                await navigator.clipboard.writeText(product.tracking_number);
-                // Show success feedback
-                const element = event.target as HTMLElement;
-                if (element) {
-                  const originalText = element.textContent;
-                  element.textContent = 'ຄັດລອກແລ້ວ!';
-                  element.className = 'cursor-pointer text-green-600 font-medium select-none';
-                  setTimeout(() => {
-                    element.textContent = originalText;
-                    element.className = 'cursor-pointer hover:underline transition-all duration-200 text-blue-600 font-medium select-none';
-                  }, 1500);
-                }
-              } catch (err) {
-                console.error('Failed to copy:', err);
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = product.tracking_number;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-              }
-            }}
-            title="ຄລິກເພື່ອຄັດລອກ"
-          >
-            {product.tracking_number}
-          </span>
-          
-          {/* Enhanced Tooltip */}
-          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap z-50 shadow-lg">
-            <div className="text-center">
-              <div className="font-medium text-white">{product.tracking_number}</div>
-              <div className="text-gray-300 text-xs mt-1">ຄລິກເພື່ອຄັດລອກ</div>
-            </div>
-            {/* Arrow */}
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-          </div>
-        </div>
-      </td>
-      {/* ເບີໂທ */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {product.client_phone || '-'}
-      </td>
-      {/* ລາຄາ */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {formatAmount(product.amount)}
-      </td>
-      {/* ສະກຸນເງິນ */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-        {product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency || '-'}
-      </td>
-      {/* ສະຖານະ */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(product.status)}`}>
-          {getStatusName(product.status)}
-        </span>
-      </td>
-      {/* ການຊຳລະ */}
-      <td className="px-6 py-4 whitespace-nowrap text-sm">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${product.is_paid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }`}>
-          {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-        </span>
-      </td>
-      {/* ວັນທີອອກໃບບິນ */}
-      <td className="px-6 py-4 text-sm text-gray-900">
-        <div className="whitespace-pre-line">
-          {formatDate(product.created_at)}
-        </div>
-      </td>
-      {/* ວັນທີແກ້ໄຂ */}
-      <td className="px-6 py-4 text-sm text-gray-900">
-        <div className="whitespace-pre-line">
-          {formatDate(product.updated_at || product.created_at)}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-        {loadingEditId === product.id ? (
-          <div className="flex justify-center">
-            <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
-          </div>
-        ) : (
-          <EnhancedActionsDropdown
-            onEdit={() => onEdit(product)}
-            onDelete={() => onDelete(product)}
-            onStatusUpdate={async (status) => await onStatusUpdate(product, status)}
-            align="end"
-            isLastItems={isLastItems}
-            currentStatus={product.status}
-          />
-        )}
-      </td>
-    </tr>
-  );
-});
-
-ProductRow.displayName = "ProductRow";
 
 export default function ProductManagementPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -322,6 +311,8 @@ export default function ProductManagementPage() {
   const [showErrorPopup, setShowErrorPopup] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [showCopySuccess, setShowCopySuccess] = useState<boolean>(false);
+  const [showDeleteSuccess, setShowDeleteSuccess] = useState<boolean>(false);
+  const [showCreateSuccess, setShowCreateSuccess] = useState<boolean>(false);
 
   // Helper function to handle API error responses
   const handleApiError = async (response: Response) => {
@@ -368,6 +359,7 @@ export default function ProductManagementPage() {
     serviceType: "send_money",
     status: "EXIT_THAI_BRANCH",
     isPaid: false,
+    remark: "",
   });
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -497,6 +489,7 @@ export default function ProductManagementPage() {
           currency: i === 2 ? null : "LAK",
           status: "AT_THAI_BRANCH",
           is_paid: false,
+          remark: `Mock remark ${i + 1}`,
           created_by: "d6a58ee7-94b6-4324-bb06-36785318d871",
           created_at: createdDate.toISOString(),
           updated_at: updatedDate.toISOString(),
@@ -578,6 +571,7 @@ export default function ProductManagementPage() {
           currency: userRole === 'thai_admin' ? null : (form.currency || 'LAK'),
           status: form.status || 'AT_THAI_BRANCH',
           is_paid: false,
+          remark: form.remark || null,
           created_by: currentUser?.id || '',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -612,15 +606,16 @@ export default function ProductManagementPage() {
         // Refresh the products list from server in background
         await fetchProducts(pagination.current_page, itemsPerPage);
 
-        // You can add a success notification here
-        // toast.success(result.message);
+        // Show success popup
+        setShowCreateSuccess(true);
       } else {
         throw new Error(result.message || 'Failed to create order');
       }
     } catch (error) {
       console.error('Create order error:', error);
       const errorMessage = error instanceof Error ? getUserFriendlyErrorMessage(error.message) : 'ຜິດພາດໃນການສ້າງສິນຄ້າ';
-      alert(errorMessage);
+      setErrorMessage(errorMessage);
+      setShowErrorPopup(true);
     } finally {
       setCreating(false);
     }
@@ -666,6 +661,7 @@ export default function ProductManagementPage() {
         serviceType: "send_money",
         status: "AT_THAI_BRANCH",
         isPaid: false,
+        remark: "",
       });
       await fetchProducts(pagination.current_page, itemsPerPage);
     } catch (e) {
@@ -697,9 +693,8 @@ export default function ProductManagementPage() {
         if (result.success) {
           setProductToDelete(null);
           await fetchProducts(pagination.current_page, itemsPerPage);
-          // Show success message using existing popup pattern
-          setErrorMessage('ລຶບສິນຄ້າສຳເລັດແລ້ວ');
-          setShowErrorPopup(true);
+          // Show success message using dedicated success popup
+          setShowDeleteSuccess(true);
         } else {
           // API returned success: false
           setErrorMessage(result.message || 'ບໍ່ສາມາດລຶບສິນຄ້າໄດ້');
@@ -732,6 +727,7 @@ export default function ProductManagementPage() {
       serviceType: "send_money",
       status: product.status,
       isPaid: product.is_paid,
+      remark: product.remark || "",
     });
     setOpenCreate(true);
   };
@@ -900,6 +896,7 @@ export default function ProductManagementPage() {
         currency: data.currency || 'LAK',
         status: data.status || 'AT_THAI_BRANCH',
         is_paid: false,
+        remark: data.remark || null,
         created_by: currentUser?.id || '',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -1125,6 +1122,11 @@ export default function ProductManagementPage() {
     if (userRole !== 'thai_admin' && updatedProduct.is_paid !== null && updatedProduct.is_paid !== undefined) {
       requestBody.is_paid = updatedProduct.is_paid;
     }
+    
+    // Include remark field for all roles
+    if (updatedProduct.remark !== null && updatedProduct.remark !== undefined) {
+      requestBody.remark = updatedProduct.remark;
+    }
 
     // Debug: Log what's being sent to the API
     console.log('=== EDIT REQUEST DEBUG ===');
@@ -1272,8 +1274,12 @@ export default function ProductManagementPage() {
                     <option value="">ສະຖານະທັງໝົດ</option>
                     <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
                     <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
-                    <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
-                    <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                    {userRole !== 'thai_admin' && (
+                      <>
+                        <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                        <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                      </>
+                    )}
                   </select>
 
                   {/* Actions */}
@@ -1357,7 +1363,15 @@ export default function ProductManagementPage() {
                             <th className="px-1 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs font-bold text-black uppercase tracking-wider whitespace-nowrap min-w-[100px]">
                               ການຊຳລະ
                             </th>
+                            <th className="px-1 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs font-bold text-black uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                              ໝາຍເຫດ
+                            </th>
                           </>
+                        )}
+                        {userRole === 'thai_admin' && (
+                          <th className="px-1 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs font-bold text-black uppercase tracking-wider whitespace-nowrap min-w-[120px]">
+                            ໝາຍເຫດ
+                          </th>
                         )}
                         <th className="px-1 sm:px-3 lg:px-6 py-2 sm:py-3 text-left text-xs font-bold text-black uppercase tracking-wider whitespace-nowrap min-w-[120px]">
                           ວັນທີອອກໃບບິນ
@@ -1424,9 +1438,11 @@ export default function ProductManagementPage() {
                           </td>
                           {/* ລຫັດ */}
                           <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-blue-600 font-bold min-w-[80px]">
-                            <div className="max-w-[80px] truncate" title={product.tracking_number}>
-                              {product.tracking_number}
-                            </div>
+                            <CopyText text={product.tracking_number} className="max-w-[80px]">
+                              {product.tracking_number.length > 8 
+                                ? `${product.tracking_number.substring(0, 8)}...` 
+                                : product.tracking_number}
+                            </CopyText>
                           </td>
                           {/* ເບີໂທ - Always visible */}
                           <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 min-w-[100px]">
@@ -1475,6 +1491,26 @@ export default function ProductManagementPage() {
                               </span>
                             </td>
                           )}
+                          {/* ໝາຍເຫດ - For super_admin and lao_admin (after payment) */}
+                          {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+                            <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 min-w-[120px]">
+                              <CopyTooltip text={product.remark || ''}>
+                                <div className="max-w-[120px] truncate cursor-pointer hover:underline" title={product.remark || '-'}>
+                                  {product.remark || '-'}
+                                </div>
+                              </CopyTooltip>
+                            </td>
+                          )}
+                          {/* ໝາຍເຫດ - For thai_admin (after status) */}
+                          {userRole === 'thai_admin' && (
+                            <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 min-w-[120px]">
+                              <CopyTooltip text={product.remark || ''}>
+                                <div className="max-w-[120px] truncate cursor-pointer hover:underline" title={product.remark || '-'}>
+                                  {product.remark || '-'}
+                                </div>
+                              </CopyTooltip>
+                            </td>
+                          )}
                           {/* ວັນທີອອກໃບບິນ - Always visible */}
                           <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-900 min-w-[120px]">
                             <div className="whitespace-pre-line max-w-[120px] truncate" title={formatDate(product.created_at)}>
@@ -1513,6 +1549,8 @@ export default function ProductManagementPage() {
                                 onStatusUpdate={async (status) => await handleStatusUpdate(product, status)}
                                 align="end"
                                 isLastItems={index >= products.length - 3}
+                                currentStatus={product.status}
+                                userRole={userRole}
                               />
                             )}
                           </td>
@@ -1609,6 +1647,13 @@ export default function ProductManagementPage() {
                 setSelectAll(false);
                 fetchProducts();
               }}
+              onRemoveSelectedProduct={(productId) => {
+                setSelectedItems(prev => {
+                  const newSet = new Set(prev);
+                  newSet.delete(productId);
+                  return newSet;
+                });
+              }}
               userRole={userRole}
             />
 
@@ -1641,9 +1686,32 @@ export default function ProductManagementPage() {
               showTimer={false}
             />
 
+            {/* Delete Success Popup */}
+            <SuccessPopup
+              open={showDeleteSuccess}
+              onOpenChange={setShowDeleteSuccess}
+              title="ສຳເລັດ!"
+              message="ລຶບສິນຄ້າສຳເລັດແລ້ວ"
+              autoCloseTimer={3000}
+              showTimer={true}
+            />
+
+            {/* Create Success Popup */}
+            <SuccessPopup
+              open={showCreateSuccess}
+              onOpenChange={setShowCreateSuccess}
+              title="ສຳເລັດ!"
+              message="ສ້າງສິນຄ້າສຳເລັດແລ້ວ"
+              autoCloseTimer={3000}
+              showTimer={true}
+            />
+
           </div>
         </main>
       </div>
+      
+      {/* Toast notifications */}
+      <Toaster />
     </div>
   );
 }

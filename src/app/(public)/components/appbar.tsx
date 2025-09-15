@@ -13,6 +13,7 @@ const ROLE_TRANSLATIONS = {
   'super_admin': 'ຊູບເປີແອັດມິນ',
   'thai_admin': 'ແອັດມິນສາຂາໄທ',
   'lao_admin': 'ແອັດມິນສາຂາລາວ',
+  'normal_user': 'ແອັດມິນທົ່ວໄປ',
 } as const;
 
 const getRoleName = (role: any): string => {

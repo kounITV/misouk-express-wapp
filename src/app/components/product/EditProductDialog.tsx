@@ -29,9 +29,10 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
     client_name: '',
     client_phone: '',
     amount: '',
-    currency: 'LAK',
+    currency: '',
     status: 'AT_THAI_BRANCH',
-    is_paid: false
+    is_paid: false,
+    remark: ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -45,11 +46,12 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
       setFormData({
         tracking_number: product.tracking_number,
         client_name: product.client_name,
-        client_phone: product.client_phone,
+        client_phone: product.client_phone ?? '',
         amount: product.amount?.toString() || '',
-        currency: product.currency || 'LAK',
+        currency: product.currency || '',
         status: product.status,
-        is_paid: product.is_paid || false
+        is_paid: product.is_paid || false,
+        remark: product.remark ?? ''
       });
     }
   }, [product]);
@@ -82,6 +84,9 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
       }
       if (formData.is_paid !== undefined) {
         updatedProduct.is_paid = formData.is_paid;
+      }
+      if (formData.remark !== undefined) {
+        updatedProduct.remark = formData.remark;
       }
 
       await onSave(updatedProduct);
@@ -127,7 +132,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               <input
                 type="text"
                 placeholder={PLACEHOLDERS.ENTER_CODE}
-                className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                 value={formData.tracking_number}
                 onChange={(e) => handleInputChange('tracking_number', e.target.value)}
               />
@@ -141,7 +146,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               <input
                 type="text"
                 placeholder={PLACEHOLDERS.ENTER_NAME}
-                className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                 value={formData.client_name}
                 onChange={(e) => handleInputChange('client_name', e.target.value)}
               />
@@ -156,7 +161,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 type="tel"
                 placeholder={PLACEHOLDERS.ENTER_PHONE}
                 pattern="[0-9]*"
-                className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                 value={formData.client_phone}
                 onChange={(e) => {
                   const value = e.target.value.replace(/[^0-9]/g, '');
@@ -176,7 +181,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                   placeholder={PLACEHOLDERS.ENTER_PRICE}
                   min="0"
                   step="0.01"
-                  className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                  className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                   value={formData.amount}
                   onChange={(e) => {
                     const value = parseFloat(e.target.value);
@@ -198,6 +203,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                   value={formData.currency}
                   onChange={(e) => handleInputChange('currency', e.target.value)}
                 >
+                  <option value="">{PLACEHOLDERS.SELECT_CURRENCY}</option>
                   <option value="LAK">{CURRENCY_OPTIONS.LAK}</option>
                   <option value="THB">{CURRENCY_OPTIONS.THB}</option>
                 </select>
@@ -216,8 +222,12 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
               >
                 <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
                 <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
-                <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
-                <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                {userRole !== 'thai_admin' && (
+                  <>
+                    <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                    <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                  </>
+                )}
               </select>
             </div>
 
@@ -237,6 +247,20 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 </select>
               </div>
             )}
+          </div>
+
+          {/* Remark Field */}
+          <div>
+            <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
+              ໝາຍເຫດ
+            </label>
+            <textarea
+              className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96] placeholder-[#818A91] resize-none text-sm sm:text-base"
+              value={formData.remark}
+              onChange={(e) => handleInputChange('remark', e.target.value)}
+              placeholder="ໝາຍເຫດ (ສາມາດປະໄວ້ເປົ່າໄດ້)"
+              rows={3}
+            />
           </div>
 
             {/* Action Buttons */}

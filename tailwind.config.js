@@ -10,6 +10,9 @@ module.exports = {
       fontFamily: {
         'sans': ['Noto Sans Lao', 'Arial', 'Helvetica', 'sans-serif'],
       },
+      colors: {
+        'muted-foreground': '#818A91',
+      },
     },
   },
   plugins: [],

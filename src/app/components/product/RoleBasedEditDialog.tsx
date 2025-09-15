@@ -30,9 +30,10 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
     client_name: '',
     client_phone: null as string | null,
     amount: '' as string,
-    currency: 'LAK',
+    currency: '',
     status: 'AT_THAI_BRANCH',
-    is_paid: false
+    is_paid: false,
+    remark: ''
   });
 
   const [saving, setSaving] = useState(false);
@@ -50,9 +51,10 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
         client_name: product.client_name,
         client_phone: product.client_phone ?? null,
         amount: product.amount?.toString() || '',
-        currency: product.currency || 'LAK',
+        currency: product.currency || '',
         status: product.status,
-        is_paid: product.is_paid || false
+        is_paid: product.is_paid || false,
+        remark: product.remark || ''
       });
     }
   }, [product]);
@@ -288,6 +290,11 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
       } else {
         delete (updatedProduct as any).is_paid;
       }
+      if (canUserEditField('remark', userRole)) {
+        updatedProduct.remark = formData.remark || null;
+      } else {
+        delete (updatedProduct as any).remark;
+      }
 
       console.log('=== ROLEBASED EDIT DEBUG ===');
       console.log('User Role:', userRole);
@@ -366,8 +373,12 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
                   >
                     <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
                     <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
-                    <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
-                    <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                    {userRole !== 'thai_admin' && (
+                      <>
+                        <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                        <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                      </>
+                    )}
                   </select>
                 </div>
               )}
@@ -381,7 +392,7 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
                   <input
                     type="text"
                     placeholder={PLACEHOLDERS.ENTER_CODE}
-                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                     value={formData.tracking_number}
                     onChange={(e) => handleInputChange('tracking_number', e.target.value)}
                   />
@@ -398,7 +409,7 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
                     type="tel"
                     placeholder={PLACEHOLDERS.ENTER_PHONE}
                     pattern="[0-9]*"
-                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                     value={formData.client_phone || ''}
                     onChange={(e) => {
                       const value = e.target.value.replace(/[^0-9]/g, '');
@@ -417,7 +428,7 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
                   <input
                     type="text"
                     placeholder={PLACEHOLDERS.ENTER_NAME}
-                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                     value={formData.client_name}
                     onChange={(e) => handleInputChange('client_name', e.target.value)}
                   />
@@ -435,7 +446,7 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
                     placeholder={PLACEHOLDERS.ENTER_PRICE}
                     min="0"
                     step="0.01"
-                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                     value={formData.amount || ''}
                     onChange={(e) => {
                       const value = parseFloat(e.target.value);
@@ -457,6 +468,7 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
                     value={formData.currency}
                     onChange={(e) => handleInputChange('currency', e.target.value)}
                   >
+                    <option value="">{PLACEHOLDERS.SELECT_CURRENCY}</option>
                     <option value="LAK">ກີບ</option>
                     <option value="THB">ບາດ</option>
                   </select>
@@ -477,6 +489,22 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
                     <option value="false">ຍັງບໍ່ຊຳລະ</option>
                     <option value="true">ຊຳລະແລ້ວ</option>
                   </select>
+                </div>
+              )}
+
+              {/* Remark Field */}
+              {canUserEditField('remark', userRole) && (
+                <div>
+                  <label className="block text-sm font-medium text-[#0d0d0d] mb-2">
+                    ໝາຍເຫດ
+                  </label>
+                  <textarea
+                    className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96] placeholder-[#818A91] resize-none text-sm sm:text-base"
+                    value={formData.remark}
+                    onChange={(e) => handleInputChange('remark', e.target.value)}
+                    placeholder="ໝາຍເຫດ (ສາມາດປະໄວ້ເປົ່າໄດ້)"
+                    rows={3}
+                  />
                 </div>
               )}
             </div>

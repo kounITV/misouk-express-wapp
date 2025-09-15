@@ -7,12 +7,15 @@ import { apiEndpoints } from "@/lib/config";
 import { AuthService } from "@/lib/auth-service";
 import { SuccessPopup } from "../ui/success-popup";
 import { AlertPopup } from "../ui/alert-popup";
+import { useToast } from "../ui/use-toast";
+import { Toaster } from "../ui/toaster";
 
 interface UpdateStatusProductDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedProducts: Product[];
   onUpdateSuccess?: () => void;
+  onRemoveSelectedProduct?: (productId: string) => void; // Add callback for removing selected products
   userRole?: string | null; // Add user role prop
 }
 
@@ -29,6 +32,7 @@ interface NewProductData {
   amount: string;
   currency: string;
   isPaid: boolean;
+  remark: string;
 }
 
 const STATUS_OPTIONS = [
@@ -56,15 +60,62 @@ const PAYMENT_OPTIONS = [
 
 const CURRENCY_OPTIONS = [
   { value: 'LAK', label: 'ກີບ (LAK)' },
-  { value: 'THB', label: 'ບາດ (THB)' },
-  { value: 'USD', label: 'ໂດລາ (USD)' }
+  { value: 'THB', label: 'ບາດ (THB)' }
 ];
+
+// Simple Copy Component without Tooltip
+interface CopyTextProps {
+  text: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const CopyText: React.FC<CopyTextProps> = ({ text, children, className = "" }) => {
+  const { toast } = useToast();
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    try {
+      console.log('Copying text:', text);
+      await navigator.clipboard.writeText(text);
+      console.log('Text copied successfully');
+      
+      // Show toast notification
+      toast({
+        title: "ຄັດລອກສຳເລັດ!",
+        description: `ລະຫັດ: ${text}`,
+        duration: 2000,
+      });
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      toast({
+        title: "ຜິດພາດ",
+        description: "ບໍ່ສາມາດຄັດລອກໄດ້",
+        variant: "destructive",
+        duration: 2000,
+      });
+    }
+  };
+
+  return (
+    <span 
+      className={`cursor-pointer hover:underline ${className}`}
+      onClick={handleCopy}
+      title="ຄັດລອກລະຫັດ"
+    >
+      {children}
+    </span>
+  );
+};
 
 export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps> = ({
   open,
   onOpenChange,
   selectedProducts,
   onUpdateSuccess,
+  onRemoveSelectedProduct,
   userRole
 }) => {
   const [formData, setFormData] = useState<UpdateFormData>({
@@ -79,12 +130,16 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     clientPhone: '',
     clientName: '',
     amount: '',
-    currency: 'LAK',
-    isPaid: false
+    currency: '',
+    isPaid: false,
+    remark: ''
   });
 
   // State for added products list
   const [addedProducts, setAddedProducts] = useState<Product[]>([]);
+  
+  // State for tracking edited selected products
+  const [editedSelectedProducts, setEditedSelectedProducts] = useState<Record<string, Partial<Product>>>({});
 
   const [isUpdating, setIsUpdating] = useState(false);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
@@ -243,7 +298,8 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             clientName: existingProduct.client_name || '',
             amount: existingProduct.amount ? existingProduct.amount.toString() : '',
             currency: existingProduct.currency || 'LAK',
-            isPaid: existingProduct.is_paid || false
+            isPaid: existingProduct.is_paid || false,
+            remark: existingProduct.remark || ''
           }));
 
           console.log('Updated form data with:', {
@@ -251,7 +307,8 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             clientName: existingProduct.client_name || '',
             amount: existingProduct.amount ? existingProduct.amount.toString() : '',
             currency: existingProduct.currency || 'LAK',
-            isPaid: existingProduct.is_paid || false
+            isPaid: existingProduct.is_paid || false,
+            remark: existingProduct.remark || ''
           });
 
           setTrackingDataFound(true);
@@ -301,6 +358,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       amount: userRole === 'thai_admin' ? existingProductData.amount : parseFloat(newProductData.amount),
       currency: userRole === 'thai_admin' ? existingProductData.currency : newProductData.currency,
       is_paid: userRole === 'thai_admin' ? existingProductData.is_paid : newProductData.isPaid,
+      remark: newProductData.remark,
       // Keep original timestamps and creator info
     } : {
       // Create new product if no existing data
@@ -312,6 +370,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       currency: userRole === 'thai_admin' ? null : newProductData.currency,
       status: 'AT_THAI_BRANCH',
       is_paid: userRole === 'thai_admin' ? false : newProductData.isPaid,
+      remark: newProductData.remark,
       created_by: '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -330,16 +389,17 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       clientPhone: '',
       clientName: '',
       amount: '',
-      currency: userRole === 'thai_admin' ? '' : 'LAK',
-      isPaid: userRole === 'thai_admin' ? false : false
+      currency: '',
+      isPaid: false,
+      remark: ''
     });
     setExistingProductData(null);
     setTrackingDataFound(false);
   };
 
   const handleEditProduct = (productId: string) => {
-    // Find the product to edit from added products
-    const productToEdit = addedProducts.find(p => p.id === productId);
+    // Allow editing of both added products and selected products
+    const productToEdit = addedProducts.find(p => p.id === productId) || selectedProducts.find(p => p.id === productId);
     if (productToEdit) {
       setInlineEditingId(productId);
       setInlineEditData({
@@ -347,20 +407,44 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         client_phone: productToEdit.client_phone,
         amount: productToEdit.amount,
         currency: productToEdit.currency,
-        is_paid: productToEdit.is_paid
+        is_paid: productToEdit.is_paid,
+        remark: productToEdit.remark
       });
+
+      // Auto-scroll to the edited row
+      setTimeout(() => {
+        const editedRow = document.querySelector(`[data-product-id="${productId}"]`);
+        if (editedRow) {
+          editedRow.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
+      }, 100);
     }
   };
 
   const handleSaveInlineEdit = () => {
     if (!inlineEditingId) return;
 
-    // Update the product in addedProducts
-    setAddedProducts(prev => prev.map(product =>
-      product.id === inlineEditingId
-        ? { ...product, ...inlineEditData }
-        : product
-    ));
+    // Check if it's an added product or selected product
+    const isAddedProduct = addedProducts.some(p => p.id === inlineEditingId);
+    
+    if (isAddedProduct) {
+      // Update the product in addedProducts
+      setAddedProducts(prev => prev.map(product =>
+        product.id === inlineEditingId
+          ? { ...product, ...inlineEditData }
+          : product
+      ));
+    } else {
+      // For selected products, save the edits to local state
+      setEditedSelectedProducts(prev => ({
+        ...prev,
+        [inlineEditingId]: inlineEditData
+      }));
+    }
 
     // Reset inline editing state
     setInlineEditingId(null);
@@ -370,6 +454,12 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
   const handleCancelInlineEdit = () => {
     setInlineEditingId(null);
     setInlineEditData({});
+  };
+
+  // Helper function to get display value for selected products (with edits applied)
+  const getDisplayValue = (product: Product, field: keyof Product): any => {
+    const editedData = editedSelectedProducts[product.id];
+    return editedData && editedData[field] !== undefined ? editedData[field] : product[field];
   };
 
   const handleSaveEdit = () => {
@@ -396,14 +486,26 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     setAddedProducts(prev => prev.filter(product => product.id !== productId));
   };
 
+  const handleRemoveSelectedProduct = (productId: string) => {
+    // Use the callback to remove the selected product
+    if (onRemoveSelectedProduct) {
+      onRemoveSelectedProduct(productId);
+    } else {
+      // Fallback message if no callback provided
+      setErrorMessage('ກະລຸນາຍົກເລືອກສິນຄ້ານີ້ຈາກຕາຕະລາງຫຼັກເພື່ອລຶບອອກ');
+      setShowErrorPopup(true);
+    }
+  };
+
   const handleResetForm = () => {
     setNewProductData({
       trackingNumber: '',
       clientPhone: '',
       clientName: '',
       amount: '',
-      currency: userRole === 'thai_admin' ? '' : 'LAK',
-      isPaid: userRole === 'thai_admin' ? false : false
+      currency: '',
+      isPaid: false,
+      remark: ''
     });
     setExistingProductData(null);
     setTrackingDataFound(false);
@@ -446,8 +548,14 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       }
 
       // Prepare the bulk update data based on user role
-      // Combine selected products and added products
-      const allProducts = [...selectedProducts, ...addedProducts];
+      // Combine selected products and added products, applying edits to selected products
+      const allProducts = [
+        ...selectedProducts.map(product => ({
+          ...product,
+          ...editedSelectedProducts[product.id]
+        })),
+        ...addedProducts
+      ];
 
       const updateData = {
         orders: allProducts.map(product => {
@@ -463,6 +571,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             orderUpdate.client_phone = product.client_phone.trim();
           }
 
+          // Include remark field for all roles
+          if (product.remark !== null && product.remark !== undefined) {
+            orderUpdate.remark = product.remark;
+          }
+
           // Only include amount, currency, and is_paid for non-thai_admin roles
           if (userRole !== 'thai_admin') {
             // Only include amount if it has a valid numeric value
@@ -471,7 +584,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             }
             // Always include currency and is_paid
             orderUpdate.currency = product.currency || 'LAK';
-            orderUpdate.is_paid = formData.isPaid;
+            orderUpdate.is_paid = product.is_paid;
           }
 
           return orderUpdate;
@@ -496,13 +609,13 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         if (result.success) {
           setShowSuccessPopup(true);
 
-          // Close dialog after success
-          setTimeout(() => {
-            onOpenChange(false);
-            if (onUpdateSuccess) {
-              onUpdateSuccess();
-            }
-          }, 2000);
+          // Call success callback and close dialog
+          if (onUpdateSuccess) {
+            onUpdateSuccess();
+          }
+          
+          // Close dialog after successful update
+          onOpenChange(false);
         } else {
           setErrorMessage(result.message || 'ບໍ່ສາມາດອັບເດດສະຖານະໄດ້');
           setShowErrorPopup(true);
@@ -523,6 +636,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
   };
 
   const handleCancel = () => {
+    // Cancel directly without showing popup
+    confirmCancel();
+  };
+
+  const confirmCancel = () => {
     setFormData({
       currentStatus: '',
       newStatus: '',
@@ -533,8 +651,9 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       clientPhone: '',
       clientName: '',
       amount: '',
-      currency: userRole === 'thai_admin' ? '' : 'LAK',
-      isPaid: userRole === 'thai_admin' ? false : false
+      currency: '',
+      isPaid: false,
+      remark: ''
     });
     setAddedProducts([]);
     setExistingProductData(null);
@@ -561,7 +680,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
               <h2 className="text-lg font-medium text-gray-700 mb-4 bg-gray-100 p-3 rounded">
                 ອັບເດດສະຖານະ
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Current Status */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -611,25 +730,6 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                   </select>
                 </div>
 
-                {/* Payment Status - Only for super_admin and lao_admin */}
-                {(userRole === 'super_admin' || userRole === 'lao_admin') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ການຊຳລະ
-                    </label>
-                    <select
-                      className="w-full p-3 border border-gray-300 rounded-md bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      value={formData.isPaid.toString()}
-                      onChange={(e) => handleInputChange('isPaid', e.target.value === 'true')}
-                    >
-                      {PAYMENT_OPTIONS.map(option => (
-                        <option key={option.value.toString()} value={option.value.toString()}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
               </div>
             </div>
 
@@ -652,7 +752,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                       <div className="flex gap-2">
                         <input
                           type="text"
-                          className="flex-1 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                          className="flex-1 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-[#818A91]"
                           value={newProductData.trackingNumber}
                           onChange={(e) => handleNewProductChange('trackingNumber', e.target.value)}
                           onKeyDown={(e) => {
@@ -685,11 +785,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                       </label>
                       <input
                         type="tel"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                        className={`w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-[#818A91] ${!trackingDataFound ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                         value={newProductData.clientPhone}
                         onChange={(e) => handleNewProductChange('clientPhone', e.target.value)}
                         placeholder="ເບີໂທລູກຄ້າ"
-                        disabled={false}
+                        disabled={!trackingDataFound}
                       />
                     </div>
 
@@ -700,11 +800,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                       </label>
                       <input
                         type="text"
-                        className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                        className={`w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-[#818A91] ${!trackingDataFound ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                         value={newProductData.clientName}
                         onChange={(e) => handleNewProductChange('clientName', e.target.value)}
                         placeholder="ຊື່ລູກຄ້າ"
-                        disabled={false}
+                        disabled={!trackingDataFound}
                       />
                     </div>
 
@@ -716,11 +816,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                         </label>
                         <input
                           type="number"
-                          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+                          className={`w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-[#818A91] ${!trackingDataFound ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                           value={newProductData.amount}
                           onChange={(e) => handleNewProductChange('amount', e.target.value)}
                           placeholder="ລາຄາ"
-                          disabled={false}
+                          disabled={!trackingDataFound}
                         />
                       </div>
                     )}
@@ -735,8 +835,9 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                           className={`w-full p-3 border border-gray-300 rounded-md text-black focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${!trackingDataFound ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                           value={newProductData.currency}
                           onChange={(e) => handleNewProductChange('currency', e.target.value)}
-                          disabled={false}
+                          disabled={!trackingDataFound}
                         >
+                          <option value="">ເລືອກສະກຸນເງິນ</option>
                           {CURRENCY_OPTIONS.map(option => (
                             <option key={option.value} value={option.value}>
                               {option.label}
@@ -756,7 +857,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                           className={`w-full p-3 border border-gray-300 rounded-md text-black focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${!trackingDataFound ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                           value={newProductData.isPaid.toString()}
                           onChange={(e) => handleNewProductChange('isPaid', e.target.value === 'true')}
-                          disabled={false}
+                          disabled={!trackingDataFound}
                         >
                           {PAYMENT_OPTIONS.map(option => (
                             <option key={option.value.toString()} value={option.value.toString()}>
@@ -766,6 +867,21 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                         </select>
                       </div>
                     )}
+
+                    {/* ໝາຍເຫດ - Remark field */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        ໝາຍເຫດ
+                      </label>
+                      <textarea
+                        className={`w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-[#818A91] resize-none ${!trackingDataFound ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                        value={newProductData.remark}
+                        onChange={(e) => handleNewProductChange('remark', e.target.value)}
+                        placeholder="ໝາຍເຫດ"
+                        disabled={!trackingDataFound}
+                        rows={3}
+                      />
+                    </div>
                   </div>
 
                   {/* Action Buttons for Form */}
@@ -798,8 +914,8 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
                 {/* Column 2: Added Products Table */}
                 <div className="bg-white rounded-lg border border-gray-200 min-h-[400px] flex flex-col">
-                  <div className="flex-1 overflow-y-auto">
-                    <table className="w-full">
+                  <div className={`flex-1 overflow-y-auto overflow-x-auto max-w-full ${inlineEditingId ? 'max-w-[800px]' : ''}`}>
+                    <table className="w-full min-w-[900px]">
                       <thead className="bg-gray-50 sticky top-0">
                         <tr>
                           <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ລຳດັບ</th>
@@ -810,11 +926,12 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ລາຄາ</th>
                           )}
                           {(userRole === 'super_admin' || userRole === 'lao_admin') && (
-                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ການຊຳລະ</th>
-                          )}
-                          {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ສະກຸນເງິນ</th>
                           )}
+                          {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+                            <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ການຊຳລະ</th>
+                          )}
+                          <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ໝາຍເຫດ</th>
                           <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ຈັດການ</th>
                         </tr>
                       </thead>
@@ -845,15 +962,15 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                           <>
                             {/* Added products */}
                             {addedProducts.map((product, index) => (
-                              <tr key={`added-${product.id}`} className="hover:bg-gray-50">
+                              <tr key={`added-${product.id}`} className="hover:bg-gray-50" data-product-id={product.id}>
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">{index + 1}</td>
                                 
                                 {/* Client Name - Editable */}
-                                <td className="px-3 py-3 text-sm whitespace-nowrap overflow-x-auto max-w-[150px]">
+                                <td className="px-3 py-3 text-sm whitespace-nowrap overflow-x-auto max-w-[200px]">
                                   {inlineEditingId === product.id ? (
                                     <input
                                       type="text"
-                                      className="w-full p-1 border border-gray-300 rounded text-sm"
+                                      className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91]"
                                       value={inlineEditData.client_name || product.client_name || ''}
                                       onChange={(e) => setInlineEditData(prev => ({ ...prev, client_name: e.target.value }))}
                                     />
@@ -863,8 +980,12 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                 </td>
                                 
                                 {/* Tracking Number - Read-only */}
-                                <td className="px-3 py-3 text-sm whitespace-nowrap overflow-x-auto max-w-[150px]">
-                                  <span className="text-blue-600 font-medium">{product.tracking_number}</span>
+                                <td className="px-3 py-3 text-sm whitespace-nowrap overflow-x-auto max-w-[200px]">
+                                  <CopyText text={product.tracking_number} className="text-blue-600 font-medium">
+                                    {product.tracking_number.length > 8 
+                                      ? `${product.tracking_number.substring(0, 8)}...` 
+                                      : product.tracking_number}
+                                  </CopyText>
                                 </td>
                                 
                                 {/* Client Phone - Editable */}
@@ -872,7 +993,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                   {inlineEditingId === product.id ? (
                                     <input
                                       type="tel"
-                                      className="w-full p-1 border border-gray-300 rounded text-sm"
+                                      className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91]"
                                       value={inlineEditData.client_phone || product.client_phone || ''}
                                       onChange={(e) => setInlineEditData(prev => ({ ...prev, client_phone: e.target.value }))}
                                     />
@@ -888,38 +1009,16 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                       <input
                                         type="number"
                                         step="0.01"
-                                        className="w-full p-1 border border-gray-300 rounded text-sm"
+                                        className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91]"
                                         value={inlineEditData.amount || product.amount || ''}
                                         onChange={(e) => setInlineEditData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
                                       />
                                     ) : (
-                                      <span>{product.amount ? product.amount.toLocaleString() : '-'}</span>
+                                      <span>{getDisplayValue(product, 'amount') ? getDisplayValue(product, 'amount')?.toLocaleString() : '-'}</span>
                                     )}
                                   </td>
                                 )}
                                 
-                                {/* Payment Status - Editable for super_admin and lao_admin */}
-                                {(userRole === 'super_admin' || userRole === 'lao_admin') && (
-                                  <td className="px-3 py-3 text-sm whitespace-nowrap">
-                                    {inlineEditingId === product.id ? (
-                                      <select
-                                        className="w-full p-1 border border-gray-300 rounded text-sm"
-                                        value={inlineEditData.is_paid ? 'true' : 'false'}
-                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, is_paid: e.target.value === 'true' }))}
-                                      >
-                                        <option value="false">ຍັງບໍ່ຊຳລະ</option>
-                                        <option value="true">ຊຳລະແລ້ວ</option>
-                                      </select>
-                                    ) : (
-                                      <span
-                                        className={`px-2 py-1 rounded-full text-xs font-medium ${product.is_paid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                          }`}
-                                      >
-                                        {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                                      </span>
-                                    )}
-                                  </td>
-                                )}
                                 
                                 {/* Currency - Editable for super_admin and lao_admin */}
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
@@ -935,15 +1034,55 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                       </select>
                                     ) : (
                                       <span>
-                                        {product.currency === 'LAK'
+                                        {getDisplayValue(product, 'currency') === 'LAK'
                                           ? 'ກີບ'
-                                          : product.currency === 'THB'
+                                          : getDisplayValue(product, 'currency') === 'THB'
                                             ? 'ບາດ'
-                                            : product.currency}
+                                            : getDisplayValue(product, 'currency')}
                                       </span>
                                     )}
                                   </td>
                                 )}
+
+                                {/* Payment Status - Only for super_admin and lao_admin */}
+                                {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+                                  <td className="px-3 py-3 text-sm whitespace-nowrap">
+                                    {inlineEditingId === product.id ? (
+                                      <select
+                                        className="w-full p-1 border border-gray-300 rounded text-sm"
+                                        value={inlineEditData.is_paid ? 'true' : 'false'}
+                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, is_paid: e.target.value === 'true' }))}
+                                      >
+                                        <option value="false">ຍັງບໍ່ຊຳລະ</option>
+                                        <option value="true">ຊຳລະແລ້ວ</option>
+                                      </select>
+                                    ) : (
+                                      <span
+                                        className={`px-2 py-1 rounded-full text-xs font-medium ${getDisplayValue(product, 'is_paid') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                          }`}
+                                      >
+                                        {getDisplayValue(product, 'is_paid') ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
+                                      </span>
+                                    )}
+                                  </td>
+                                )}
+                                
+                                {/* Remark */}
+                                <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                  {inlineEditingId === product.id ? (
+                                    <textarea
+                                      className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91] resize-none"
+                                      value={inlineEditData.remark || product.remark || ''}
+                                      onChange={(e) => setInlineEditData(prev => ({ ...prev, remark: e.target.value }))}
+                                      placeholder="ໝາຍເຫດ"
+                                      rows={2}
+                                    />
+                                  ) : (
+                                    <CopyText text={getDisplayValue(product, 'remark') || ''} className="max-w-[150px] truncate block">
+                                      {getDisplayValue(product, 'remark') || '-'}
+                                    </CopyText>
+                                  )}
+                                </td>
                                 
                                 {/* Actions */}
                                 <td className="px-3 py-3 text-sm flex items-center space-x-3 whitespace-nowrap">
@@ -1010,42 +1149,209 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
                             {/* Selected products */}
                             {selectedProducts.map((product, index) => (
-                              <tr key={`selected-${product.id}`} className="hover:bg-gray-50">
+                              <tr key={`selected-${product.id}`} className="hover:bg-gray-50" data-product-id={product.id}>
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">{index + 1}</td>
+                                
+                                {/* Client Name - Editable */}
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap overflow-x-auto max-w-[150px]">
-                                  {product.client_name}
+                                  {inlineEditingId === product.id ? (
+                                    <input
+                                      type="text"
+                                      className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91]"
+                                      value={inlineEditData.client_name || product.client_name || ''}
+                                      onChange={(e) => setInlineEditData(prev => ({ ...prev, client_name: e.target.value }))}
+                                      placeholder="ຊື່ລູກຄ້າ"
+                                    />
+                                  ) : (
+                                    <span>{getDisplayValue(product, 'client_name')}</span>
+                                  )}
                                 </td>
-                                <td className="px-3 py-3 text-sm whitespace-nowrap overflow-x-auto max-w-[150px]">
-                                  <span className="text-blue-600 font-medium">{product.tracking_number}</span>
+                                
+                                {/* Tracking Number - Editable */}
+                                <td className="px-3 py-3 text-sm whitespace-nowrap overflow-x-auto max-w-[200px]">
+                                  {inlineEditingId === product.id ? (
+                                    <input
+                                      type="text"
+                                      className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91]"
+                                      value={inlineEditData.tracking_number || product.tracking_number || ''}
+                                      onChange={(e) => setInlineEditData(prev => ({ ...prev, tracking_number: e.target.value }))}
+                                      placeholder="ລະຫັດສິນຄ້າ"
+                                    />
+                                  ) : (
+                                    <CopyText text={product.tracking_number} className="text-blue-600 font-medium">
+                                      {product.tracking_number.length > 8 
+                                        ? `${product.tracking_number.substring(0, 8)}...` 
+                                        : product.tracking_number}
+                                    </CopyText>
+                                  )}
                                 </td>
+                                
+                                {/* Client Phone - Editable */}
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap overflow-x-auto max-w-[120px]">
-                                  {product.client_phone || '-'}
+                                  {inlineEditingId === product.id ? (
+                                    <input
+                                      type="tel"
+                                      className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91]"
+                                      value={inlineEditData.client_phone || product.client_phone || ''}
+                                      onChange={(e) => setInlineEditData(prev => ({ ...prev, client_phone: e.target.value }))}
+                                      placeholder="ເບີໂທ"
+                                    />
+                                  ) : (
+                                    <span>{getDisplayValue(product, 'client_phone') || '-'}</span>
+                                  )}
                                 </td>
+                                
+                                {/* Amount - Editable for super_admin and lao_admin */}
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                                   <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                    {product.amount ? product.amount.toLocaleString() : '-'}
+                                    {inlineEditingId === product.id ? (
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91]"
+                                        value={inlineEditData.amount || product.amount || ''}
+                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
+                                      />
+                                    ) : (
+                                      <span>{getDisplayValue(product, 'amount') ? getDisplayValue(product, 'amount')?.toLocaleString() : '-'}</span>
+                                    )}
                                   </td>
                                 )}
+                                
+                                
+                                {/* Currency - Editable for super_admin and lao_admin */}
+                                {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+                                  <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                    {inlineEditingId === product.id ? (
+                                      <select
+                                        className="w-full p-1 border border-gray-300 rounded text-sm"
+                                        value={inlineEditData.currency || product.currency || 'LAK'}
+                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, currency: e.target.value }))}
+                                      >
+                                        <option value="LAK">ກີບ</option>
+                                        <option value="THB">ບາດ</option>
+                                      </select>
+                                    ) : (
+                                      <span>
+                                        {getDisplayValue(product, 'currency') === 'LAK'
+                                          ? 'ກີບ'
+                                          : getDisplayValue(product, 'currency') === 'THB'
+                                            ? 'ບາດ'
+                                            : getDisplayValue(product, 'currency')}
+                                      </span>
+                                    )}
+                                  </td>
+                                )}
+
+                                {/* Payment Status - Only for super_admin and lao_admin */}
                                 {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                                   <td className="px-3 py-3 text-sm whitespace-nowrap">
-                                    <span
-                                      className={`px-2 py-1 rounded-full text-xs font-medium ${product.is_paid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                        }`}
-                                    >
-                                      {product.is_paid ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                                    </span>
+                                    {inlineEditingId === product.id ? (
+                                      <select
+                                        className="w-full p-1 border border-gray-300 rounded text-sm"
+                                        value={inlineEditData.is_paid ? 'true' : 'false'}
+                                        onChange={(e) => setInlineEditData(prev => ({ ...prev, is_paid: e.target.value === 'true' }))}
+                                      >
+                                        <option value="false">ຍັງບໍ່ຊຳລະ</option>
+                                        <option value="true">ຊຳລະແລ້ວ</option>
+                                      </select>
+                                    ) : (
+                                      <span
+                                        className={`px-2 py-1 rounded-full text-xs font-medium ${getDisplayValue(product, 'is_paid') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                          }`}
+                                      >
+                                        {getDisplayValue(product, 'is_paid') ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
+                                      </span>
+                                    )}
                                   </td>
                                 )}
-                                {(userRole === 'super_admin' || userRole === 'lao_admin') && (
-                                  <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                    {product.currency === 'LAK'
-                                      ? 'ກີບ'
-                                      : product.currency === 'THB'
-                                        ? 'ບາດ'
-                                        : product.currency}
-                                  </td>
-                                )}
-                                <td className="px-3 py-3 text-sm text-gray-500 text-center whitespace-nowrap">-</td>
+                                
+                                {/* Remark - Editable */}
+                                <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                  {inlineEditingId === product.id ? (
+                                    <textarea
+                                      className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91] resize-none"
+                                      value={inlineEditData.remark || product.remark || ''}
+                                      onChange={(e) => setInlineEditData(prev => ({ ...prev, remark: e.target.value }))}
+                                      placeholder="ໝາຍເຫດ"
+                                      rows={2}
+                                    />
+                                  ) : (
+                                    <CopyText text={getDisplayValue(product, 'remark') || ''} className="max-w-[150px] truncate block">
+                                      {getDisplayValue(product, 'remark') || '-'}
+                                    </CopyText>
+                                  )}
+                                </td>
+                                {/* Actions */}
+                                <td className="px-3 py-3 text-sm flex items-center space-x-3 whitespace-nowrap">
+                                  {inlineEditingId === product.id ? (
+                                    <>
+                                      {/* Save button */}
+                                      <button
+                                        onClick={handleSaveInlineEdit}
+                                        className="text-green-600 hover:text-green-800"
+                                        title="ບັນທຶກ"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M5 13l4 4L19 7"
+                                          />
+                                        </svg>
+                                      </button>
+                                      {/* Cancel button */}
+                                      <button
+                                        onClick={handleCancelInlineEdit}
+                                        className="text-red-600 hover:text-red-800"
+                                        title="ຍົກເລີກ"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M6 18L18 6M6 6l12 12"
+                                          />
+                                        </svg>
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {/* Edit button */}
+                                      <button
+                                        onClick={() => handleEditProduct(product.id)}
+                                        className="text-blue-600 hover:text-blue-800"
+                                        title="ແກ້ໄຂ"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"
+                                          />
+                                        </svg>
+                                      </button>
+                                      {/* Delete button */}
+                                      <button
+                                        onClick={() => handleRemoveSelectedProduct(product.id)}
+                                        className="text-red-600 hover:text-red-800"
+                                        title="ລຶບ"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                          />
+                                        </svg>
+                                      </button>
+                                    </>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </>
@@ -1116,6 +1422,10 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         autoCloseTimer={5000}
         showTimer={true}
       />
+
+      {/* Toast notifications */}
+      <Toaster />
+
     </>
   );
 };

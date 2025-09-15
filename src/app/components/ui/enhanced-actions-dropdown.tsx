@@ -12,6 +12,7 @@ interface EnhancedActionsDropdownProps {
   align?: 'start' | 'end';
   isLastItems?: boolean; // New prop to determine if this is one of the last items
   currentStatus?: string; // Current status of the product
+  userRole?: string | null; // User role for role-based filtering
 }
 
 export const EnhancedActionsDropdown: React.FC<EnhancedActionsDropdownProps> = ({
@@ -20,7 +21,8 @@ export const EnhancedActionsDropdown: React.FC<EnhancedActionsDropdownProps> = (
   onStatusUpdate,
   align = 'end',
   isLastItems = false,
-  currentStatus
+  currentStatus,
+  userRole
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showStatusSubmenu, setShowStatusSubmenu] = useState(false);
@@ -35,8 +37,10 @@ export const EnhancedActionsDropdown: React.FC<EnhancedActionsDropdownProps> = (
   const statusOptions = [
     { value: 'AT_THAI_BRANCH', label: 'ສິນຄ້າຮອດໄທ' },
     { value: 'EXIT_THAI_BRANCH', label: 'ສິ້ນຄ້າອອກຈາກໄທ' },
-    { value: 'AT_LAO_BRANCH', label: 'ສິ້ນຄ້າຮອດລາວ' },
-    { value: 'COMPLETED', label: 'ລູກຄ້າຮັບເອົາສິນຄ້າ' }
+    ...(userRole !== 'thai_admin' ? [
+      { value: 'AT_LAO_BRANCH', label: 'ສິ້ນຄ້າຮອດລາວ' },
+      { value: 'COMPLETED', label: 'ລູກຄ້າຮັບເອົາສິນຄ້າ' }
+    ] : [])
   ];
 
   const handleStatusSelection = (status: string, label: string) => {

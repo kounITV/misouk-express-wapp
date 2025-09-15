@@ -1,6 +1,6 @@
 "use client";
 
-import { apiEndpoints } from './config';
+import { apiEndpoints, config } from './config';
 
 export interface LoginRequest {
   username: string;
@@ -35,19 +35,29 @@ export interface ValidateResponse {
 export class AuthService {
   static async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
+      console.log('=== AUTH SERVICE LOGIN DEBUG ===');
+      console.log('API_BASE_URL from env:', process.env.NEXT_PUBLIC_API_BASE_URL);
+      console.log('Config API_URL:', config.API_URL);
       console.log('Attempting login to:', apiEndpoints.login);
+      console.log('Full URL being called:', apiEndpoints.login);
       console.log('Credentials:', { username: credentials.username, password: '***' });
       
-      const response = await fetch(apiEndpoints.login, {
+      const fetchOptions = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (compatible; MISOUK-Express-App)',
         },
-        mode: 'cors',
-        credentials: 'omit',
+        mode: 'cors' as RequestMode,
+        credentials: 'omit' as RequestCredentials,
         body: JSON.stringify(credentials),
-      });
+      };
+      
+      console.log('Fetch options:', fetchOptions);
+      console.log('About to make fetch request to:', apiEndpoints.login);
+      
+      const response = await fetch(apiEndpoints.login, fetchOptions);
 
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));

@@ -60,6 +60,7 @@ const getRoleName = (role: any): string => {
     case 'super_admin': return 'ຊູບເປີແອັດມິນ';
     case 'thai_admin': return 'ແອັດມິນສາຂາໄທ';
     case 'lao_admin': return 'ແອັດມິນສາຂາລາວ';
+    case 'normal_user': return 'ແອັດມິນທົ່ວໄປ';
     default: return String(roleName || '');
   }
 };

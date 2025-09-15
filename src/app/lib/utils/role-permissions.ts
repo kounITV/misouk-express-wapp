@@ -30,6 +30,7 @@ export const getRolePermissions = (role: string | undefined | null): RolePermiss
           'currency',
           'status',
           'is_paid',
+          'remark',
           'created_at',
           'updated_at',
           'actions'
@@ -41,7 +42,8 @@ export const getRolePermissions = (role: string | undefined | null): RolePermiss
           'amount',
           'currency',
           'status',
-          'is_paid'
+          'is_paid',
+          'remark'
         ],
         createFields: [
           'tracking_number',
@@ -49,7 +51,8 @@ export const getRolePermissions = (role: string | undefined | null): RolePermiss
           'client_phone',
           'amount',
           'currency',
-          'status'
+          'status',
+          'remark'
         ]
       };
       
@@ -66,6 +69,7 @@ export const getRolePermissions = (role: string | undefined | null): RolePermiss
           'tracking_number',
           'client_phone',
           'status',
+          'remark',
           'created_at',
           'updated_at',
           'actions'
@@ -74,12 +78,14 @@ export const getRolePermissions = (role: string | undefined | null): RolePermiss
           'status',
           'tracking_number',
           'client_name',
-          'client_phone'
+          'client_phone',
+          'remark'
         ],
         createFields: [
           'tracking_number',
           'client_phone',
-          'client_name'
+          'client_name',
+          'remark'
         ]
       };
       
@@ -99,6 +105,7 @@ export const getRolePermissions = (role: string | undefined | null): RolePermiss
           'currency',
           'status',
           'is_paid',
+          'remark',
           'created_at',
           'updated_at',
           'actions'
@@ -110,7 +117,8 @@ export const getRolePermissions = (role: string | undefined | null): RolePermiss
           'client_phone',
           'amount',
           'currency',
-          'is_paid'
+          'is_paid',
+          'remark'
         ],
         createFields: [
           'tracking_number',
@@ -118,7 +126,8 @@ export const getRolePermissions = (role: string | undefined | null): RolePermiss
           'client_phone',
           'amount',
           'currency',
-          'status'
+          'status',
+          'remark'
         ]
       };
       

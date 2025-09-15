@@ -59,10 +59,11 @@ export const DEFAULT_FORM_VALUES: FormData = {
   receiverName: "",
   senderPhone: "",
   amount: "",
-  currency: "LAK",
+  currency: "",
   serviceType: "send_money",
   status: "AT_THAI_BRANCH",
   isPaid: false,
+  remark: "",
 };
 
 // Constants
@@ -142,6 +143,7 @@ export const normalizeProduct = (p: ApiProduct): Product => {
     currency: p.currency ?? null,
     status: convertStatusFromAPI(p.status ?? '') || DEFAULT_STATUS, // Convert API status to UI status
     is_paid: p.is_paid ?? false,
+    remark: p.remark ?? null,
     created_by: p.created_by ?? "",
     created_at: p.created_at ?? new Date().toISOString(),
     updated_at: p.updated_at,
@@ -202,6 +204,7 @@ export const generateMockProducts = (count: number = 6): Product[] => {
     currency: i % 2 === 0 ? "LAK" : "THB",
     status: "AT_THAI_BRANCH",
     is_paid: i % 2 === 0,
+    remark: `Mock remark ${i + 1}`,
     created_by: "admin",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

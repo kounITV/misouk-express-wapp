@@ -164,7 +164,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
                     <input
                       type="text"
                       placeholder={PLACEHOLDERS.ENTER_CODE}
-                      className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                      className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                       value={formData.tracking_number}
                       onChange={(e) => handleInputChange('tracking_number', e.target.value)}
                     />
@@ -181,7 +181,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
                       type="tel"
                       placeholder={PLACEHOLDERS.ENTER_PHONE}
                       pattern="[0-9]*"
-                      className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                      className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                       value={formData.client_phone}
                       onChange={(e) => {
                         const value = e.target.value.replace(/[^0-9]/g, '');
@@ -200,7 +200,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
                     <input
                       type="text"
                       placeholder={PLACEHOLDERS.ENTER_NAME}
-                      className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                      className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                       value={formData.client_name}
                       onChange={(e) => handleInputChange('client_name', e.target.value)}
                     />
@@ -253,7 +253,7 @@ export const RoleBasedCreateDialog: React.FC<RoleBasedCreateDialogProps> = ({
                         placeholder={PLACEHOLDERS.ENTER_PRICE}
                         min="0"
                         step="0.01"
-                        className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#999999] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
+                        className="w-full p-2 sm:p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] placeholder-[#818A91] focus:ring-[#015c96] focus:border-[#015c96] text-sm sm:text-base"
                         value={formData.amount}
                         onChange={(e) => {
                           const value = parseFloat(e.target.value);

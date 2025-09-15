@@ -72,6 +72,30 @@ body {
   outline-offset: 2px;
 }
 
+/* Placeholder text color */
+::placeholder {
+  color: #818A91 !important;
+  opacity: 1;
+}
+
+/* Webkit placeholder styles */
+::-webkit-input-placeholder {
+  color: #818A91 !important;
+  opacity: 1;
+}
+
+/* Firefox placeholder styles */
+::-moz-placeholder {
+  color: #818A91 !important;
+  opacity: 1;
+}
+
+/* IE placeholder styles */
+:-ms-input-placeholder {
+  color: #818A91 !important;
+  opacity: 1;
+}
+
 /* Smooth scrolling */
 @media (prefers-reduced-motion: no-preference) {
   html {

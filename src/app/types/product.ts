@@ -8,6 +8,7 @@ export interface Product {
   currency: string | null;
   status: string;
   is_paid: boolean;
+  remark: string | null;
   created_by: string;
   created_at: string;
   updated_at?: string | undefined;
@@ -41,6 +42,7 @@ export interface ApiProduct {
   currency?: string | null;
   status?: string;
   is_paid?: boolean;
+  remark?: string | null;
   created_by?: string;
   created_at?: string;
   updated_at?: string;
@@ -74,6 +76,7 @@ export interface FormData {
   serviceType: string;
   status: string;
   isPaid: boolean;
+  remark: string;
 }
 
 export interface PaginationData {

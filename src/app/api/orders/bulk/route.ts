@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
         client_name: orderData.client_name || '',
         client_phone: orderData.client_phone || null,
         amount: orderData.amount || null,
-        currency: orderData.currency || 'LAK',
+        currency: orderData.currency || null,
         status: orderData.status || 'AT_THAI_BRANCH',
         is_paid: orderData.is_paid || false,
         created_by: 'd6a58ee7-94b6-4324-bb06-36785318d871',

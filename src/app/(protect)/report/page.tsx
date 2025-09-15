@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Download, Calendar, BarChart3, TrendingUp, Users, Package, Search, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { Pagination } from "@/components/ui/pagination";
 import Image from "next/image";
 import { AuthService } from "@/lib/auth-service";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -13,6 +14,7 @@ import { SidebarMenu } from "@/components/ui/sidebar-menu";
 import { cn } from "@/lib/utils";
 import { apiEndpoints } from "@/lib/config";
 import { Product, PaginationData } from "@/types/product";
+import { formatDate } from "@/lib/utils/product";
 
 const getRoleName = (role: any): string => {
   const roleName = typeof role === 'string' ? role : (role?.name || role?.id || '');
@@ -25,19 +27,6 @@ const getRoleName = (role: any): string => {
   }
 };
 
-const formatDate = (dateString: string | undefined | null): string => {
-  if (!dateString) return '00:00:00';
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    });
-  } catch {
-    return '00:00:00';
-  }
-};
 
 const getStatusDisplay = (status: string): string => {
   switch (status) {
@@ -111,6 +100,18 @@ export default function ReportPage() {
   });
 
   const { user: currentUser, isMounted } = useAuth();
+
+  // Pagination handlers
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    fetchOrders(page, itemsPerPage);
+  };
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+    fetchOrders(1, newItemsPerPage);
+  };
 
   // Fetch report summary data from API
   const fetchReportSummary = async (start: string, end: string) => {
@@ -525,7 +526,7 @@ export default function ReportPage() {
                       type="date" 
                       value={summaryStartDate}
                       onChange={(e) => setSummaryStartDate(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px]"
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px] placeholder-[#818A91] text-black"
                     />
                 </div>
                 <div className="flex flex-col">
@@ -534,7 +535,7 @@ export default function ReportPage() {
                     type="date" 
                     value={summaryEndDate}
                     onChange={(e) => setSummaryEndDate(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px]"
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px] placeholder-[#818A91] text-black"
                   />
                 </div>
               </div>
@@ -543,7 +544,7 @@ export default function ReportPage() {
             {/* Summary Cards */}
             <div className="grid grid-cols-2 gap-4 mb-6">
               {/* Total Paid Items (LAK) */}
-              <Card className="bg-green-500 border-green-500">
+              <Card className="border-2" style={{ backgroundColor: '#006939', borderColor: '#006939' }}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -560,7 +561,7 @@ export default function ReportPage() {
               </Card>
 
               {/* Total Paid Items (THB) */}
-              <Card className="bg-green-500 border-green-500">
+              <Card className="border-2" style={{ backgroundColor: '#006939', borderColor: '#006939' }}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -577,7 +578,7 @@ export default function ReportPage() {
               </Card>
 
               {/* Total Unpaid Items (LAK) */}
-              <Card className="bg-red-500 border-red-500">
+              <Card className="border-2" style={{ backgroundColor: '#952626', borderColor: '#952626' }}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -594,7 +595,7 @@ export default function ReportPage() {
               </Card>
 
               {/* Total Unpaid Items (THB) */}
-              <Card className="bg-red-500 border-red-500">
+              <Card className="border-2" style={{ backgroundColor: '#952626', borderColor: '#952626' }}>
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
@@ -614,7 +615,7 @@ export default function ReportPage() {
             {/* Filter Section */}
             <div className="mb-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-800">ລາຍງານສິນຄ້າ</h2>
+                <h2 className="text-lg font-semibold text-black">ລາຍງານສິນຄ້າ</h2>
                 <Button 
                   onClick={handleExportReport}
                   className="bg-green-600 hover:bg-green-700 text-white"
@@ -643,7 +644,7 @@ export default function ReportPage() {
                       placeholder="ຄົ້ນຫາ..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm"
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm placeholder-[#818A91] text-black"
                     />
                   </div>
 
@@ -651,20 +652,24 @@ export default function ReportPage() {
                   <select
                     value={selectedStatus}
                     onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[140px]"
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[140px] text-black"
                   >
                     <option value="">ສະຖານະ</option>
                     <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
                     <option value="EXIT_THAI_BRANCH">ສິນຄ້າອອກຈາກໄທ</option>
-                    <option value="AT_LAO_BRANCH">ສິນຄ້າຮອດລາວ</option>
-                    <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                    {currentUser?.role !== 'thai_admin' && (
+                      <>
+                        <option value="AT_LAO_BRANCH">ສິນຄ້າຮອດລາວ</option>
+                        <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
+                      </>
+                    )}
                   </select>
 
                   {/* Currency Dropdown */}
                   <select
                     value={selectedCurrency}
                     onChange={(e) => setSelectedCurrency(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[100px]"
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[100px] text-black"
                   >
                     <option value="">ສະກຸນເງິນ</option>
                     <option value="LAK">ກີບ</option>
@@ -675,7 +680,7 @@ export default function ReportPage() {
                   <select
                     value={selectedPayment}
                     onChange={(e) => setSelectedPayment(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px]"
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px] text-black"
                   >
                     <option value="">ການຊຳລະ</option>
                     <option value="paid">ຊຳລະແລ້ວ</option>
@@ -689,7 +694,7 @@ export default function ReportPage() {
                       type="date"
                       value={ordersStartDate}
                       onChange={(e) => setOrdersStartDate(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px]"
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px] placeholder-[#818A91] text-black"
                     />
                   </div>
 
@@ -700,7 +705,7 @@ export default function ReportPage() {
                       type="date"
                       value={ordersEndDate}
                       onChange={(e) => setOrdersEndDate(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px]"
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm min-w-[120px] placeholder-[#818A91] text-black"
                     />
                   </div>
 
@@ -721,16 +726,16 @@ export default function ReportPage() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">ລຳດັບ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">ຊື່ລູກຄ້າ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px]">ລະຫັດ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] hidden sm:table-cell">ເບີໂທ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[80px]">ລາຄາ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16 hidden md:table-cell">ສະກຸນ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">ສະຖານະ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">ການຊຳລະ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] hidden lg:table-cell">ວັນທີອອກໃບບິນ</th>
-                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] hidden xl:table-cell">ວັນທີແກ້ໄຂ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider w-16">ລຳດັບ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider min-w-[120px]">ຊື່ລູກຄ້າ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider min-w-[140px]">ລະຫັດ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider min-w-[100px] hidden sm:table-cell">ເບີໂທ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider min-w-[80px]">ລາຄາ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider w-16 hidden md:table-cell">ສະກຸນ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider min-w-[120px]">ສະຖານະ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider min-w-[100px]">ການຊຳລະ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider min-w-[100px] hidden lg:table-cell">ວັນທີອອກໃບບິນ</th>
+                      <th className="px-2 md:px-4 py-3 text-left text-xs font-medium text-black uppercase tracking-wider min-w-[100px] hidden xl:table-cell">ວັນທີແກ້ໄຂ</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -790,7 +795,12 @@ export default function ReportPage() {
                           {/* ສະຖານະ */}
                           <td className="px-2 md:px-4 py-3 text-sm text-gray-900">
                             <div className="max-w-[120px]">
-                              <span className="inline-block px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                order.status === 'AT_THAI_BRANCH' ? 'bg-blue-100 text-blue-800' :
+                                order.status === 'EXIT_THAI_BRANCH' ? 'bg-yellow-100 text-yellow-800' :
+                                order.status === 'AT_LAO_BRANCH' ? 'bg-purple-100 text-purple-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
                                 {getStatusDisplay(order.status)}
                               </span>
                             </div>
@@ -814,7 +824,7 @@ export default function ReportPage() {
                           {/* ວັນທີແກ້ໄຂ - Hidden on smaller screens */}
                           <td className="px-2 md:px-4 py-3 text-sm text-gray-900 hidden xl:table-cell">
                             <div className="text-xs">
-                              {formatDate(order.updated_at)}
+                              {formatDate(order.updated_at || order.created_at)}
                             </div>
                           </td>
                         </tr>
@@ -825,68 +835,16 @@ export default function ReportPage() {
               </div>
 
               {/* Pagination */}
-              <div className="bg-white px-4 py-3 border-t border-gray-200">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                  {/* Items per page selector */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 hidden sm:inline">ສະແດງ:</span>
-                    <select
-                      value={itemsPerPage}
-                      onChange={(e) => setItemsPerPage(Number(e.target.value))}
-                      className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-                    >
-                      <option value={25}>25 ຕໍ່ໜ້າ</option>
-                      <option value={50}>50 ຕໍ່ໜ້າ</option>
-                      <option value={100}>100 ຕໍ່ໜ້າ</option>
-                    </select>
-                  </div>
-                  
-                  {/* Pagination info and controls */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700 hidden md:inline">
-                      ໜ້າ {currentPage} ຈາກ {pagination.total_pages}
-                    </span>
-                    <span className="text-sm text-gray-700 md:hidden">
-                      {currentPage}/{pagination.total_pages}
-                    </span>
-                    
-                    <div className="flex items-center space-x-1">
-                      <button
-                        onClick={() => setCurrentPage(1)}
-                        className="p-2 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={currentPage === 1}
-                        title="ໜ້າທຳອິດ"
-                      >
-                        <ChevronsLeft className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        className="p-2 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={currentPage === 1}
-                        title="ໜ້າກ່ອນໜ້າ"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setCurrentPage(Math.min(pagination.total_pages, currentPage + 1))}
-                        className="p-2 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={currentPage === pagination.total_pages}
-                        title="ໜ້າຕໍ່ໄປ"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setCurrentPage(pagination.total_pages)}
-                        className="p-2 rounded-md border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={currentPage === pagination.total_pages}
-                        title="ໜ້າສຸດທ້າຍ"
-                      >
-                        <ChevronsRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <Pagination
+                totalRecords={pagination.total}
+                currentPage={pagination.current_page}
+                totalPages={pagination.total_pages}
+                nextPage={pagination.next_page}
+                prevPage={pagination.prev_page}
+                onPageChange={handlePageChange}
+                itemsPerPage={itemsPerPage}
+                onItemsPerPageChange={handleItemsPerPageChange}
+              />
             </div>
           </div>
         </main>

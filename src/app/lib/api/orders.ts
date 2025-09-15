@@ -153,7 +153,14 @@ export async function createOrder(orderData: CreateOrderData, useOrdersArray: bo
       body: JSON.stringify(requestBody),
     });
 
+    console.log('=== NETWORK RESPONSE DEBUG ===');
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
     const result = await response.json();
+    console.log('Response data:', result);
+    console.log('=== END NETWORK RESPONSE DEBUG ===');
 
     if (!response.ok) {
       throw new Error(result.error || result.message || 'Failed to create order');

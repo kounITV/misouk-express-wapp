@@ -87,6 +87,11 @@ export const RoleBasedTableHeader: React.FC<RoleBasedTableHeaderProps> = ({
           </th>
         )}
 
+        {/* ໝາຍເຫດ */}
+        <th className="px-3 md:px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider hidden lg:table-cell">
+          ໝາຍເຫດ
+        </th>
+
         {/* ວັນທີອອກໃບບິນ */}
         {canUserAccessColumn('created_at', userRole) && (
           <th className="px-3 md:px-6 py-3 text-left text-xs font-bold text-black uppercase tracking-wider hidden xl:table-cell">

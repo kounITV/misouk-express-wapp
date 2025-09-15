@@ -9,6 +9,7 @@ interface OrderData {
   currency?: string | null;
   status: string;
   is_paid: boolean;
+  remark?: string | null;
 }
 
 // Multiple orders interface
@@ -31,6 +32,7 @@ function createOrder(orderData: OrderData) {
     currency: orderData.currency || null,
     status: orderData.status,
     is_paid: orderData.is_paid,
+    remark: orderData.remark || null,
     created_by: "admin", // In real app, get from auth
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

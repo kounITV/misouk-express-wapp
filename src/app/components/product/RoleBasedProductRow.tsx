@@ -69,7 +69,9 @@ export const RoleBasedProductRow = memo(({
       {/* ລຫັດ */}
       {canUserAccessColumn('tracking_number', userRole) && (
         <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
-          {product.tracking_number}
+          {product.tracking_number.length > 8 
+            ? `${product.tracking_number.substring(0, 8)}...` 
+            : product.tracking_number}
         </td>
       )}
 
@@ -114,6 +116,13 @@ export const RoleBasedProductRow = memo(({
         </td>
       )}
 
+      {/* ໝາຍເຫດ */}
+      <td className="px-6 py-4 text-sm text-gray-900 hidden lg:table-cell">
+        <span className="max-w-[150px] truncate block" title={product.remark || ''}>
+          {product.remark || '-'}
+        </span>
+      </td>
+
       {/* ວັນທີອອກໃບບິນ */}
       {canUserAccessColumn('created_at', userRole) && (
         <td className="px-6 py-4 text-sm text-gray-900">
@@ -143,9 +152,15 @@ export const RoleBasedProductRow = memo(({
             <EnhancedActionsDropdown
               onEdit={() => permissions.canEdit && onEdit(product)}
               onDelete={() => permissions.canDelete && onDelete(product)}
-              onStatusUpdate={async (status) => permissions.canEdit && await onStatusUpdate(product, status)}
+              onStatusUpdate={async (status) => {
+                if (permissions.canEdit) {
+                  await onStatusUpdate(product, status);
+                }
+              }}
               align="end"
               isLastItems={isLastItems}
+              currentStatus={product.status}
+              userRole={userRole || null}
             />
           )}
         </td>

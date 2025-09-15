@@ -112,7 +112,7 @@ export const MultiSelect = forwardRef<
                     )}
                 >
                     <Command ref={ref} {...props}>
-                        <CommandInput placeholder="Search..." className="h-9" />
+                        <CommandInput placeholder="Search..." className="h-9 placeholder-[#818A91]" />
                         <CommandEmpty>{emptyMessage}</CommandEmpty>
                         <CommandGroup>
                             <ScrollArea className="overflow-y-auto max-h-52">
