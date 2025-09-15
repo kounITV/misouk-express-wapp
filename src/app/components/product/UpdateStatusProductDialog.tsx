@@ -42,6 +42,22 @@ const STATUS_OPTIONS = [
   { value: 'COMPLETED', label: 'ລູກຄ້າຮັບເອົາສິນຄ້າ' }
 ];
 
+// Status progression logic
+const getNextStatus = (currentStatus: string): string => {
+  switch (currentStatus) {
+    case 'AT_THAI_BRANCH':
+      return 'EXIT_THAI_BRANCH';
+    case 'EXIT_THAI_BRANCH':
+      return 'AT_LAO_BRANCH';
+    case 'AT_LAO_BRANCH':
+      return 'COMPLETED';
+    case 'COMPLETED':
+      return 'COMPLETED'; // Last status, no progression
+    default:
+      return 'AT_THAI_BRANCH'; // Default starting status
+  }
+};
+
 // Role-specific status options
 const getStatusOptionsForRole = (userRole: string) => {
   if (userRole === 'thai_admin') {
@@ -190,28 +206,13 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         });
         setAddedProducts([]);
       } else {
-        // Check if all selected products have the same status
-        const firstProduct = selectedProducts[0];
-        if (firstProduct) {
-          const allSameStatus = selectedProducts.every(product => product.status === firstProduct.status);
-
-          if (allSameStatus) {
-            // All products have the same status - use that status
-            setFormData({
-              currentStatus: firstProduct.status,
-              newStatus: '',
-              isPaid: false
-            });
-          } else {
-            // Products have different statuses - this should not happen now
-            // as we check at the parent level, but keep this as fallback
-            setFormData({
-              currentStatus: 'MIXED_STATUS',
-              newStatus: '',
-              isPaid: false
-            });
-          }
-        }
+        // Products selected - keep status fields empty initially
+        // User will need to enter tracking number or manually select status
+        setFormData({
+          currentStatus: '',
+          newStatus: '',
+          isPaid: false
+        });
       }
     } else {
       // Dialog closed - reset form but keep popup state if it's showing
@@ -313,6 +314,16 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
           setTrackingDataFound(true);
 
+          // Set current status and next status based on existing product status
+          const currentStatus = existingProduct.status;
+          const nextStatus = getNextStatus(currentStatus);
+          
+          setFormData(prev => ({
+            ...prev,
+            currentStatus: currentStatus,
+            newStatus: nextStatus
+          }));
+
           // No popup when data is found - just populate the form
         } else {
           // Tracking number not found
@@ -347,6 +358,29 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       setErrorMessage(`ລະຫັດສິນຄ້ານີ້ ${trackingNumber} ມີແລ້ວ`);
       setShowErrorPopup(true);
       return;
+    }
+
+    // Status validation: Check if the status in the table (selectedProducts) matches the current status
+    if (selectedProducts.length > 0) {
+      // Check if all selected products have the same status
+      const firstStatus = selectedProducts[0]?.status;
+      if (firstStatus) {
+        const allSameStatus = selectedProducts.every(product => product.status === firstStatus);
+        
+        if (!allSameStatus) {
+          setErrorMessage('ສະຖານະຕ່າງກັນ (ບໍ່ສາມາດເພີ່ມໄດ້)');
+          setShowErrorPopup(true);
+          return;
+        }
+        
+        // Check if the status matches the current status
+        if (firstStatus !== formData.currentStatus) {
+          const currentStatusLabel = getStatusLabel(firstStatus);
+          setErrorMessage(`ສະຖານະ: ${currentStatusLabel}`);
+          setShowErrorPopup(true);
+          return;
+        }
+      }
     }
 
     // Use existing product data if available, otherwise create new product
@@ -688,26 +722,36 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                   </label>
                   <select
                     className={`w-full p-3 border border-gray-300 rounded-md ${selectedProducts.length === 0
-                        ? 'bg-white text-gray-700'
+                        ? (trackingDataFound ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-700')
                         : 'bg-gray-100 text-gray-700'
                       }`}
                     value={formData.currentStatus}
-                    disabled={selectedProducts.length > 0}
+                    disabled={selectedProducts.length > 0 || trackingDataFound}
                     onChange={(e) => setFormData(prev => ({ ...prev, currentStatus: e.target.value }))}
                   >
-                    <option value="">
-                      {selectedProducts.length === 0
-                        ? 'ກະລຸນາເລືອກສະຖານະທີ່ຕ້ອງການອັບເດດ'
-                        : formData.currentStatus === 'MIXED_STATUS'
-                          ? 'ສະຖານະຕ່າງກັນ (ບໍ່ສາມາດອັບເດດໄດ້)'
-                          : getStatusLabel(formData.currentStatus) || 'ກະລຸນາເລືອກ'
-                      }
-                    </option>
-                    {selectedProducts.length === 0 && getStatusOptionsForRole(userRole || '').map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
+                    {!trackingDataFound && (
+                      <option value="">
+                        {selectedProducts.length === 0
+                          ? 'ກະລຸນາເລືອກສະຖານະທີ່ຕ້ອງການອັບເດດ'
+                          : formData.currentStatus === 'MIXED_STATUS'
+                            ? 'ສະຖານະຕ່າງກັນ (ບໍ່ສາມາດອັບເດດໄດ້)'
+                            : getStatusLabel(formData.currentStatus) || 'ກະລຸນາເລືອກ'
+                        }
                       </option>
-                    ))}
+                    )}
+                    {selectedProducts.length === 0 && (
+                      trackingDataFound && formData.currentStatus ? (
+                        <option value={formData.currentStatus}>
+                          {getStatusLabel(formData.currentStatus)}
+                        </option>
+                      ) : (
+                        getStatusOptionsForRole(userRole || '').map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))
+                      )
+                    )}
                   </select>
                 </div>
 
