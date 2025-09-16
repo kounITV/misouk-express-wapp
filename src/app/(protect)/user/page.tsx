@@ -23,6 +23,8 @@ import { LogoutButton } from "@/components/ui/logout-button";
 import { Pagination } from "@/components/ui/pagination";
 import { SidebarMenu } from "@/components/ui/sidebar-menu";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import { useToast } from "@/components/ui/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 import { apiEndpoints } from "@/lib/config";
 
 interface User {
@@ -126,8 +128,23 @@ export default function UserManagementPage() {
   const [roles, setRoles] = useState<Array<{ id: string; name: string }>>([]);
   const [usernameExists, setUsernameExists] = useState<boolean>(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState<boolean>(false);
+  const [errorDialog, setErrorDialog] = useState<{ open: boolean; title: string; message: string }>({
+    open: false,
+    title: "",
+    message: ""
+  });
 
   const { user: currentUser, isMounted } = useAuth();
+  const { toast } = useToast();
+
+  // Convert gender to Lao
+  const getGenderInLao = (gender: string): string => {
+    switch (gender) {
+      case 'male': return 'ຊາຍ';
+      case 'female': return 'ຍິງ';
+      default: return gender;
+    }
+  };
 
   const isFormValid = useMemo(() => {
     const requiredFilled =
@@ -339,6 +356,14 @@ export default function UserManagementPage() {
       setEditingUser(null);
       // reset form
       setForm({ username: "", password: "", confirmPassword: "", firstname: "", lastname: "", gender: "male", phone: "", role_id: "" });
+      
+      // Show success toast
+      toast({
+        title: "ສ້າງຜູ້ໃຊ້ສຳເລັດ!",
+        description: `ຜູ້ໃຊ້ ${form.username} ຖືກສ້າງແລ້ວ`,
+        duration: 3000,
+      });
+      
       await fetchUsers(pagination.current_page, itemsPerPage);
     } catch (e) {
       console.error(e);
@@ -414,13 +439,43 @@ export default function UserManagementPage() {
       
       if (!res.ok) {
         const errBody = await res.text();
-        throw new Error(`Delete failed ${res.status}: ${errBody}`);
+        let errorMessage = "ບໍ່ສາມາດລຶບຜູ້ໃຊ້ໄດ້";
+        
+        try {
+          const errorData = JSON.parse(errBody);
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (parseError) {
+          // If parsing fails, use the raw error body
+          errorMessage = errBody || errorMessage;
+        }
+        
+        setErrorDialog({
+          open: true,
+          title: "ຜິດພາດ",
+          message: errorMessage
+        });
+        return;
       }
       
       setUserToDelete(null);
+      
+      // Show success toast
+      toast({
+        title: "ລຶບຜູ້ໃຊ້ສຳເລັດ!",
+        description: `ຜູ້ໃຊ້ ${user.username} ຖືກລຶບແລ້ວ`,
+        duration: 3000,
+      });
+      
       await fetchUsers(pagination.current_page, itemsPerPage);
     } catch (e) {
       console.error(e);
+      setErrorDialog({
+        open: true,
+        title: "ຜິດພາດ",
+        message: "ເກີດຂໍ້ຜິດພາດໃນການລຶບຜູ້ໃຊ້"
+      });
     } finally {
       setDeleting(false);
     }
@@ -466,6 +521,15 @@ export default function UserManagementPage() {
   };
 
   const openDeleteDialog = (user: User) => {
+    // Check if user is trying to delete themselves
+    if (currentUser && user.username === currentUser.username) {
+      setErrorDialog({
+        open: true,
+        title: "ບໍ່ສາມາດລຶບບັນຊີຂອງທ່ານເອງໄດ້",
+        message: "ທ່ານບໍ່ສາມາດລຶບບັນຊີຂອງທ່ານເອງໄດ້"
+      });
+      return;
+    }
     setUserToDelete(user);
   };
 
@@ -529,11 +593,11 @@ export default function UserManagementPage() {
       />
 
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isMobileMenuOpen ? 'lg:ml-0 ml-64' : 'ml-0'}`}>
+      <div className="flex-1 flex flex-col transition-all duration-300 ml-0 lg:ml-0">
         {/* Header */}
         <header className="bg-[#0c64b0] text-white px-4 md:px-6 py-4 flex justify-between lg:justify-end items-center">
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden">
+          {/* Mobile Menu Button - Hide when menu is open */}
+          <div className={`lg:hidden ${isMobileMenuOpen ? 'hidden' : 'block'}`}>
             <button 
               className="text-white p-2" 
               aria-label="Menu"
@@ -574,22 +638,6 @@ export default function UserManagementPage() {
 
             {/* User Table */}
             <Card className="bg-white shadow-sm">
-              {/* <CardHeader className="border-b border-gray-200">
-                <div className="flex justify-between items-center">
-                  <CardTitle className="text-lg font-medium text-gray-800">ລາຍການຜູ້ໃຊ້ງານ</CardTitle>
-                  {loading && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded">
-                      <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                      ກຳລັງໂຫຼດ...
-                    </div>
-                  )}
-                  {!loading && users.length > 0 && (
-                    <div className="text-sm text-gray-500 bg-green-100 px-3 py-1 rounded">
-                      ທັງໝົດ {users.length} ຄົນ
-                    </div>
-                  )}
-                </div>
-              </CardHeader> */}
               <CardContent className="p-6">
                 <div className="overflow-x-auto relative">
                    <table className="w-full">
@@ -662,7 +710,7 @@ export default function UserManagementPage() {
                             {user.lastname}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {user.gender}
+                            {getGenderInLao(user.gender)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {user.phone}
@@ -724,10 +772,10 @@ export default function UserManagementPage() {
                   <div>
                     <Label className="mb-1 block text-black">ເພດ</Label>
                     <div className="flex items-center gap-6">
-                      <label className="flex items-center gap-2 text-sm">
+                      <label className="flex items-center gap-2 text-sm text-black">
                         <input type="radio" name="gender" value="male" checked={form.gender === 'male'} onChange={() => setForm({ ...form, gender: 'male' })} className="accent-[#2E72D2]" /> ຊາຍ
                       </label>
-                      <label className="flex items-center gap-2 text-sm">
+                      <label className="flex items-center gap-2 text-sm text-black">
                         <input type="radio" name="gender" value="female" checked={form.gender === 'female'} onChange={() => setForm({ ...form, gender: 'female' })} className="accent-[#2E72D2]" /> ຍິງ
                       </label>
                     </div>
@@ -850,6 +898,28 @@ export default function UserManagementPage() {
           </div>
         </main>
       </div>
+
+      {/* Error Dialog */}
+      <Dialog open={errorDialog.open} onOpenChange={(open) => setErrorDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-w-sm w-full mx-4 bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-red-600">{errorDialog.title}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-gray-700">{errorDialog.message}</p>
+          </div>
+          <DialogFooter>
+            <Button 
+              onClick={() => setErrorDialog(prev => ({ ...prev, open: false }))}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              ຕົກລົງ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Toaster />
     </div>
   );
 }

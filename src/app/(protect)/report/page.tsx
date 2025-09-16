@@ -480,11 +480,11 @@ export default function ReportPage() {
       />
 
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isMobileMenuOpen ? 'lg:ml-0 ml-64' : 'ml-0'}`}>
+      <div className="flex-1 flex flex-col transition-all duration-300 ml-0 lg:ml-0">
         {/* Header */}
         <header className="bg-[#0c64b0] text-white px-4 md:px-6 py-4 flex justify-between lg:justify-end items-center">
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden">
+          {/* Mobile Menu Button - Hide when menu is open */}
+          <div className={`lg:hidden ${isMobileMenuOpen ? 'hidden' : 'block'}`}>
             <button 
               className="text-white p-2" 
               aria-label="Menu"

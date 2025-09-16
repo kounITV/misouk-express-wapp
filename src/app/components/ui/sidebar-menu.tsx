@@ -127,7 +127,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
       {isMobile && (
         <div 
           id="mobile-sidebar"
-          className={`fixed top-0 left-0 h-full w-64 bg-[#0c64b0] transform transition-transform duration-300 ease-in-out z-50 flex flex-col shadow-lg ${
+          className={`lg:hidden fixed top-0 left-0 h-full w-64 bg-[#0c64b0] transform transition-transform duration-300 ease-in-out z-50 flex flex-col shadow-lg ${
             isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
@@ -216,7 +216,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
       
       {/* Desktop sidebar - only show on desktop */}
       {!isMobile && (
-        <div className={`bg-[#0c64b0] flex flex-col transition-all duration-300 ${
+        <div className={`hidden lg:flex bg-[#0c64b0] flex-col transition-all duration-300 ${
           isCollapsed ? 'w-20' : 'w-64'
         }`}>
       {/* Header with Menu Icon only (no logo on desktop) */}

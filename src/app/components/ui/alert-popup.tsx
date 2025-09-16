@@ -87,9 +87,10 @@ export const AlertPopup: React.FC<AlertPopupProps> = ({
           )}
           
           {/* Alert Message */}
-          <p className="text-gray-600 text-center whitespace-pre-line text-sm sm:text-base">
-            {message}
-          </p>
+          <p 
+            className={`text-center whitespace-pre-line text-sm sm:text-base ${type === 'error' ? 'text-red-600' : 'text-gray-600'}`}
+            dangerouslySetInnerHTML={{ __html: message }}
+          />
           
           {/* Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 mt-6 w-full sm:w-auto">

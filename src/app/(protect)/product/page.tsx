@@ -8,13 +8,9 @@ import { Package, Plus, Search, Edit3 } from "lucide-react";
 import Image from "next/image";
 import { AuthService } from "@/lib/auth-service";
 import { useAuth } from "@/lib/hooks/use-auth";
-import { ActionsDropdown } from "@/components/ui/dropdown";
 import EnhancedActionsDropdown from "@/components/ui/enhanced-actions-dropdown";
 import EditProductDialog from "@/components/product/EditProductDialog";
 import RoleBasedEditDialog from "@/components/product/RoleBasedEditDialog";
-import RoleBasedCreateDialog from "@/components/product/RoleBasedCreateDialog";
-import RoleBasedTableHeader from "@/components/product/RoleBasedTableHeader";
-import RoleBasedProductRow from "@/components/product/RoleBasedProductRow";
 import UpdateStatusProductDialog from "@/components/product/UpdateStatusProductDialog";
 import { LogoutButton } from "@/components/ui/logout-button";
 import { Pagination } from "@/components/ui/pagination";
@@ -40,12 +36,10 @@ const CopyText: React.FC<CopyTextProps> = ({ text, children, className = "" }) =
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     try {
-      console.log('Copying text:', text);
       await navigator.clipboard.writeText(text);
-      console.log('Text copied successfully');
-      
+
       // Show toast notification
       toast({
         title: "ຄັດລອກສຳເລັດ!",
@@ -53,7 +47,6 @@ const CopyText: React.FC<CopyTextProps> = ({ text, children, className = "" }) =
         duration: 2000,
       });
     } catch (err) {
-      console.error('Failed to copy text: ', err);
       toast({
         title: "ຜິດພາດ",
         description: "ບໍ່ສາມາດຄັດລອກໄດ້",
@@ -64,7 +57,7 @@ const CopyText: React.FC<CopyTextProps> = ({ text, children, className = "" }) =
   };
 
   return (
-    <span 
+    <span
       className={`cursor-pointer hover:underline ${className}`}
       onClick={handleCopy}
       title="ຄັດລອກລະຫັດ"
@@ -100,12 +93,12 @@ const CopyTooltip: React.FC<CopyTooltipProps> = ({ text, children, className = "
     if (tooltipTimeout) {
       clearTimeout(tooltipTimeout);
     }
-    
+
     // Set a 3-second delay before showing tooltip
     const timeout = setTimeout(() => {
       setShowTooltip(true);
     }, 3000);
-    
+
     setTooltipTimeout(timeout);
   };
 
@@ -121,11 +114,9 @@ const CopyTooltip: React.FC<CopyTooltipProps> = ({ text, children, className = "
   const handleCopy = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     try {
-      console.log('Copying text:', text);
       await navigator.clipboard.writeText(text);
-      console.log('Text copied successfully');
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -134,19 +125,19 @@ const CopyTooltip: React.FC<CopyTooltipProps> = ({ text, children, className = "
   };
 
   return (
-    <div 
+    <div
       className={`relative inline-block ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {children}
       {showTooltip && (
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg z-50 whitespace-nowrap">
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-black text-sm rounded-lg shadow-lg z-50 whitespace-nowrap">
           <div className="flex items-center gap-2">
             <span>{copied ? 'ຄັດລອກແລ້ວ!' : 'ຄັດລອກ'}</span>
             <button
               onClick={handleCopy}
-              className="text-white hover:text-gray-300 transition-colors"
+              className="text-black hover:text-gray-300 transition-colors"
               title="ຄັດລອກ"
             >
               {copied ? (
@@ -178,31 +169,31 @@ const getUserFriendlyErrorMessage = (error: any): string => {
       if (error.message.includes('ສະຖານະທີ່ອະນຸຍາດມີແຕ່ EXIT_THAI_BRANCH ເທົ່ານັ້ນ')) {
         return 'ກະລຸນາເລືອກສະຖານະ';
       }
-      
+
       // Amount validation error
       if (error.message.includes('Validation failed') || error.message.includes('ລາຄາຕ້ອງບໍ່ຕິດລົບ')) {
         return 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
       }
-      
+
       // Permission denied errors
       if (error.message.includes('ບໍ່ສາມາດແກ້ໄຂຈຳນວນເງິນ, ສະກຸນເງິນ ຫຼື ສະຖານະການຈ່າຍເງິນ')) {
         return 'ກະລຸນາເລືອກສະຖານະ';
       }
-      
+
       // Access denied error
       if (error.message.includes('ບໍ່ມີສິດໃນການເຂົ້າເຖິງ')) {
         return 'ເກີດຂໍ້ຜິດພາດບໍ່ສາມາດສ້າງລາຍການໄດ້';
       }
-      
+
       // Cannot edit items that have already left Thai branch
       if (error.message.includes('ບໍ່ສາມາດແກ້ໄຂລາຍການທີ່ອອກຈາກສາຂາໄທແລ້ວ')) {
         return 'ກະລຸນາເລືອກສາຖານະເພື່ອອັບເດດ';
       }
-      
-      
+
+
       return error.message;
     }
-    
+
     // Handle error arrays
     if (error.error && Array.isArray(error.error) && error.error.length > 0) {
       const firstError = error.error[0];
@@ -217,7 +208,7 @@ const getUserFriendlyErrorMessage = (error: any): string => {
       }
     }
   }
-  
+
   // Handle string errors
   if (typeof error === 'string') {
     if (error.includes('API Error: 403')) {
@@ -228,7 +219,7 @@ const getUserFriendlyErrorMessage = (error: any): string => {
     }
     return error;
   }
-  
+
   return 'ເກີດຂໍ້ຜິດພາດ ກະລຸນາລອງໃໝ່ອີກຄັ້ງ';
 };
 
@@ -318,7 +309,7 @@ export default function ProductManagementPage() {
   const handleApiError = async (response: Response) => {
     const errorText = await response.text();
     const specificStatusCodes = [400, 402, 403, 404, 409];
-    
+
     try {
       const errorResult = JSON.parse(errorText);
       if (errorResult.message) {
@@ -327,12 +318,12 @@ export default function ProductManagementPage() {
     } catch {
       // JSON parsing failed, continue to status code check
     }
-    
+
     // If no message from API and it's a specific status code, show fallback message
     if (specificStatusCodes.includes(response.status)) {
       return 'ລະບົບຂັດຂ້ອງ, ກະລຸນາລອງໃໝ່';
     }
-    
+
     // For other status codes, show the original error
     return `ຜິດພາດ ${response.status}: ${errorText}`;
   };
@@ -386,7 +377,7 @@ export default function ProductManagementPage() {
       form.productCode.trim() &&
       form.senderName.trim()
     );
-    
+
     // Amount and currency are now optional for all roles
     return baseValidation;
   }, [form, userRole]);
@@ -452,34 +443,23 @@ export default function ProductManagementPage() {
       const incoming = (data.data ?? data.result ?? []) as ApiProduct[];
       const normalized: Product[] = incoming.map(normalizeProduct);
 
-      console.log('=== Data Processing Debug ===');
-      console.log('Raw API response:', data);
-      console.log('Incoming products:', incoming);
-      console.log('Normalized products:', normalized);
-      console.log('Products count:', normalized.length);
-
       setProducts(normalized);
 
       if (data.pagination) {
         setPagination(data.pagination);
       }
     } catch (err) {
-      console.error('=== FETCH PRODUCTS ERROR ===');
-      console.error('Error details:', err);
-      console.error('Error message:', err instanceof Error ? err.message : 'Unknown error');
-      console.error('Error stack:', err instanceof Error ? err.stack : 'No stack trace');
-      console.error('=== END FETCH PRODUCTS ERROR ===');
-      
+
       // Show user-friendly error message
       setErrorMessage(`ບໍ່ສາມາດໂຫຼດຂໍ້ມູນ: ${err instanceof Error ? err.message : 'ເກີດຂໍ້ຜິດພາດທີ່ບໍ່ຮູ້ສາເຫດ'}`);
       setShowErrorPopup(true);
-      
+
       // Mock data for development - using orders structure
       const mockProducts: Product[] = Array.from({ length: 3 }, (_, i) => {
         const baseDate = new Date('2025-08-18T15:20:33.486Z');
         const createdDate = new Date(baseDate.getTime() + (i * 60000)); // Add i minutes
         const updatedDate = new Date(createdDate.getTime() + (i * 30000)); // Add i*30 seconds
-        
+
         return {
           id: `a9906737-85ee-47fe-aeb0-b4805fe3ce7${i}`,
           tracking_number: i === 0 ? "545" : i === 1 ? "5423543" : "123",
@@ -533,7 +513,7 @@ export default function ProductManagementPage() {
     try {
       // Prepare order data based on user role
       let orderData: CreateOrderData;
-      
+
       if (userRole === 'thai_admin') {
         // Thai Admin: Only send required fields
         orderData = {
@@ -785,13 +765,13 @@ export default function ProductManagementPage() {
   // Check if selected products have mixed statuses
   const checkMixedStatuses = useCallback(() => {
     if (selectedItems.size === 0) return false;
-    
+
     const selectedProducts = products.filter(product => selectedItems.has(product.id));
     if (selectedProducts.length === 0) return false;
-    
+
     const firstProduct = selectedProducts[0];
     if (!firstProduct) return false;
-    
+
     const firstStatus = firstProduct.status;
     return selectedProducts.some(product => product.status !== firstStatus);
   }, [selectedItems, products]);
@@ -852,7 +832,7 @@ export default function ProductManagementPage() {
   // Handle role-based create
   const handleRoleBasedCreate = useCallback(async (data: CreateOrderData) => {
     let orderData: CreateOrderData;
-    
+
     if (userRole === 'thai_admin') {
       // Thai Admin: Only send required fields
       orderData = {
@@ -937,7 +917,7 @@ export default function ProductManagementPage() {
     console.log('New Status:', newStatus);
     console.log('User Role:', userRole);
     console.log('=== END STATUS UPDATE DEBUG ===');
-    
+
     const token = AuthService.getStoredToken();
     if (!token) throw new Error("No token");
 
@@ -987,7 +967,7 @@ export default function ProductManagementPage() {
       const errorText = await response.text();
       // Revert the optimistic update on error
       fetchProducts(pagination.current_page, itemsPerPage);
-      
+
       try {
         const errorJson = JSON.parse(errorText);
         const friendlyMessage = getUserFriendlyErrorMessage(errorJson);
@@ -1122,7 +1102,7 @@ export default function ProductManagementPage() {
     if (userRole !== 'thai_admin' && updatedProduct.is_paid !== null && updatedProduct.is_paid !== undefined) {
       requestBody.is_paid = updatedProduct.is_paid;
     }
-    
+
     // Include remark field for all roles
     if (updatedProduct.remark !== null && updatedProduct.remark !== undefined) {
       requestBody.remark = updatedProduct.remark;
@@ -1202,11 +1182,11 @@ export default function ProductManagementPage() {
       />
 
       {/* Main Content */}
-      <div className={`flex-1 flex flex-col transition-all duration-300 ${isMobileMenuOpen ? 'lg:ml-0 ml-64' : 'ml-0'}`}>
+      <div className="flex-1 flex bg-gray-50 flex-col transition-all duration-300 ml-0 lg:ml-0">
         {/* Header */}
         <header className="bg-[#0c64b0] text-white px-4 md:px-6 py-4 flex justify-between lg:justify-end items-center">
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden">
+          {/* Mobile Menu Button - Hide when menu is open */}
+          <div className={`lg:hidden ${isMobileMenuOpen ? 'hidden' : 'block'}`}>
             <button
               className="text-white p-2"
               aria-label="Menu"
@@ -1232,7 +1212,6 @@ export default function ProductManagementPage() {
             <LogoutButton onLogout={handleLogout} className="text-white" />
           </div>
         </header>
-
         {/* Content Area */}
         <main className="flex-1 p-6">
           <div className="max-w-7xl mx-auto w-full">
@@ -1287,7 +1266,7 @@ export default function ProductManagementPage() {
                     <Button
                       onClick={handleUpdateStatusClick}
                       className="bg-[#0c64b0] hover:bg-[#247dc9] text-white text-sm px-3 py-2 flex items-center gap-2"
-                      //disabled={selectedItems.size === 0}
+                    //disabled={selectedItems.size === 0}
                     >
                       <span className="hidden sm:inline">ອັບເດດສະຖານະ</span>
                       <span className="sm:hidden">ອັບເດດ</span>
@@ -1439,8 +1418,8 @@ export default function ProductManagementPage() {
                           {/* ລຫັດ */}
                           <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-blue-600 font-bold min-w-[80px]">
                             <CopyText text={product.tracking_number} className="max-w-[80px]">
-                              {product.tracking_number.length > 8 
-                                ? `${product.tracking_number.substring(0, 8)}...` 
+                              {product.tracking_number.length > 8
+                                ? `${product.tracking_number.substring(0, 8)}...`
                                 : product.tracking_number}
                             </CopyText>
                           </td>
@@ -1452,16 +1431,15 @@ export default function ProductManagementPage() {
                           </td>
                           {/* ສະຖານະ - Always visible */}
                           <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm min-w-[100px]">
-                            <span className={`inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-xs font-medium ${
-                              product.status === 'AT_THAI_BRANCH' ? 'bg-blue-100 text-blue-800' :
+                            <span className={`inline-flex items-center px-1 sm:px-2 py-0.5 rounded-full text-xs font-medium ${product.status === 'AT_THAI_BRANCH' ? 'bg-blue-100 text-blue-800' :
                               product.status === 'EXIT_THAI_BRANCH' ? 'bg-yellow-100 text-yellow-800' :
-                              product.status === 'AT_LAO_BRANCH' ? 'bg-purple-100 text-purple-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
+                                product.status === 'AT_LAO_BRANCH' ? 'bg-purple-100 text-purple-800' :
+                                  'bg-green-100 text-green-800'
+                              }`}>
                               {product.status === 'AT_THAI_BRANCH' ? 'ສິນຄ້າຮອດໄທ' :
-                               product.status === 'EXIT_THAI_BRANCH' ? 'ສິ້ນຄ້າອອກຈາກໄທ' :
-                               product.status === 'AT_LAO_BRANCH' ? 'ສິ້ນຄ້າຮອດລາວ' :
-                               product.status === 'COMPLETED' ? 'ລູກຄ້າຮັບເອົາສິນຄ້າ' : product.status}
+                                product.status === 'EXIT_THAI_BRANCH' ? 'ສິ້ນຄ້າອອກຈາກໄທ' :
+                                  product.status === 'AT_LAO_BRANCH' ? 'ສິ້ນຄ້າຮອດລາວ' :
+                                    product.status === 'COMPLETED' ? 'ລູກຄ້າຮັບເອົາສິນຄ້າ' : product.status}
                             </span>
                           </td>
                           {/* ລາຄາ - Only for super_admin and lao_admin */}
@@ -1654,6 +1632,10 @@ export default function ProductManagementPage() {
                   return newSet;
                 });
               }}
+              onClose={() => {
+                setSelectedItems(new Set());
+                setSelectAll(false);
+              }}
               userRole={userRole}
             />
 
@@ -1709,7 +1691,7 @@ export default function ProductManagementPage() {
           </div>
         </main>
       </div>
-      
+
       {/* Toast notifications */}
       <Toaster />
     </div>

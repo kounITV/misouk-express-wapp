@@ -16,6 +16,7 @@ interface UpdateStatusProductDialogProps {
   selectedProducts: Product[];
   onUpdateSuccess?: () => void;
   onRemoveSelectedProduct?: (productId: string) => void; // Add callback for removing selected products
+  onClose?: () => void; // Add callback for when dialog is closed
   userRole?: string | null; // Add user role prop
 }
 
@@ -56,6 +57,21 @@ const getNextStatus = (currentStatus: string): string => {
     default:
       return 'AT_THAI_BRANCH'; // Default starting status
   }
+};
+
+// Check if a status update is a rollback (going backwards)
+const isRollback = (currentStatus: string, newStatus: string): boolean => {
+  const statusOrder = ['AT_THAI_BRANCH', 'EXIT_THAI_BRANCH', 'AT_LAO_BRANCH', 'COMPLETED'];
+  const currentIndex = statusOrder.indexOf(currentStatus);
+  const newIndex = statusOrder.indexOf(newStatus);
+  
+  // If either status is not found in the order, it's not a rollback
+  if (currentIndex === -1 || newIndex === -1) {
+    return false;
+  }
+  
+  // If new index is less than current index, it's a rollback
+  return newIndex < currentIndex;
 };
 
 // Role-specific status options
@@ -132,6 +148,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
   selectedProducts,
   onUpdateSuccess,
   onRemoveSelectedProduct,
+  onClose,
   userRole
 }) => {
   const [formData, setFormData] = useState<UpdateFormData>({
@@ -139,6 +156,9 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     newStatus: '',
     isPaid: false
   });
+
+  // State to track if status fields have been locked (should not change until approve)
+  const [statusFieldsLocked, setStatusFieldsLocked] = useState(false);
 
   // State for new product data
   const [newProductData, setNewProductData] = useState<NewProductData>({
@@ -194,36 +214,84 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     return `ຜິດພາດ ${response.status}: ${errorText}`;
   };
 
-  // Initialize form when dialog opens
+    // Initialize form when dialog opens
   useEffect(() => {
     if (open) {
       if (selectedProducts.length === 0) {
-        // No products selected - reset form and clear added products
-        setFormData({
-          currentStatus: '',
-          newStatus: '',
-          isPaid: false
-        });
-        setAddedProducts([]);
+        // No products selected - only reset form if status fields are not locked
+        if (!statusFieldsLocked) {
+          setFormData({
+            currentStatus: '',
+            newStatus: '',
+            isPaid: false
+          });
+        }
+        // Don't clear addedProducts - keep them for the user
       } else {
-        // Products selected - keep status fields empty initially
-        // User will need to enter tracking number or manually select status
-        setFormData({
-          currentStatus: '',
-          newStatus: '',
-          isPaid: false
-        });
+        // Check if all selected products have the same status
+        const firstProduct = selectedProducts[0];
+        if (firstProduct) {
+          const allSameStatus = selectedProducts.every(product => product.status === firstProduct.status);
+          
+          if (allSameStatus) {
+            // All products have the same status - use that status
+            // Only set if current status is empty (first time)
+            if (!formData.currentStatus) {
+              // Always show the next status by default
+              const nextStatus = getNextStatus(firstProduct.status);
+              setFormData({
+                currentStatus: firstProduct.status,
+                newStatus: nextStatus,
+                isPaid: false
+              });
+              // Lock status fields once they're set
+              setStatusFieldsLocked(true);
+            }
+
+            // Status validation removed - only check when pressing "ເພີ່ມລາຍການ"
+          } else {
+            // Products have different statuses - this should not happen now
+            // as we check at the parent level, but keep this as fallback
+            if (!formData.currentStatus) {
+              setFormData({
+                currentStatus: 'MIXED_STATUS',
+                newStatus: '',
+                isPaid: false
+              });
+            }
+          }
+        }
       }
     } else {
-      // Dialog closed - reset form but keep popup state if it's showing
+      // Dialog closed - clear all state
       setFormData({
         currentStatus: '',
         newStatus: '',
         isPaid: false
       });
+      setStatusFieldsLocked(false);
+      setNewProductData({
+        trackingNumber: '',
+        clientPhone: '',
+        clientName: '',
+        amount: '',
+        currency: '',
+        isPaid: false,
+        remark: ''
+      });
+      setAddedProducts([]);
+      setEditedSelectedProducts({});
+      setExistingProductData(null);
+      setTrackingDataFound(false);
+      setInlineEditingId(null);
+      setInlineEditData({});
+      setEditingProduct(null);
+      setEditFormData({});
+      setIsUpdating(false);
+      setIsCheckingTracking(false);
       // Don't reset popup state here - let the timer handle it
     }
-  }, [open, selectedProducts, onOpenChange]);
+  }, [open, selectedProducts, onOpenChange, newProductData.trackingNumber, existingProductData, statusFieldsLocked]);
 
 
 
@@ -252,7 +320,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
   const isNewProductValid = () => {
     const baseValidation = newProductData.trackingNumber &&
       newProductData.clientName;
-
+    
     // Amount, currency, and isPaid are now optional for all roles
     return baseValidation;
   };
@@ -275,7 +343,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
     setIsCheckingTracking(true);
     try {
-
+      
       const response = await fetch(`${apiEndpoints.orders}/tracking/${encodeURIComponent(newProductData.trackingNumber)}`, {
         method: 'GET',
         headers: {
@@ -292,7 +360,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
 
           // Store the existing product data with its original ID
           setExistingProductData(existingProduct);
-
+          
           setNewProductData(prev => ({
             ...prev,
             clientPhone: existingProduct.client_phone || '',
@@ -302,7 +370,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             isPaid: existingProduct.is_paid || false,
             remark: existingProduct.remark || ''
           }));
-
+          
           console.log('Updated form data with:', {
             clientPhone: existingProduct.client_phone || '',
             clientName: existingProduct.client_name || '',
@@ -311,19 +379,36 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             isPaid: existingProduct.is_paid || false,
             remark: existingProduct.remark || ''
           });
-
+          
           setTrackingDataFound(true);
 
-          // Set current status and next status based on existing product status
-          const currentStatus = existingProduct.status;
-          const nextStatus = getNextStatus(currentStatus);
+          // Only update status fields if no selected products, status fields are not locked, and no current status is set
+          if (selectedProducts.length === 0 && !statusFieldsLocked && !formData.currentStatus) {
+            // No selected products - update status fields based on tracking number
+            const currentStatus = existingProduct.status;
+            // Always show the next status by default
+            const nextStatus = getNextStatus(currentStatus);
+            
+            console.log('Tracking number found - updating status fields:', {
+              currentStatus,
+              nextStatus,
+              existingProduct
+            });
+            
+            setFormData(prev => {
+              const newFormData = {
+                ...prev,
+                currentStatus: currentStatus,
+                newStatus: nextStatus
+              };
+              console.log('Setting form data:', newFormData);
+              return newFormData;
+            });
+            // Lock status fields once they're set
+            setStatusFieldsLocked(true);
+          }
+          // If selected products exist, don't change the status fields - keep them as they are
           
-          setFormData(prev => ({
-            ...prev,
-            currentStatus: currentStatus,
-            newStatus: nextStatus
-          }));
-
           // No popup when data is found - just populate the form
         } else {
           // Tracking number not found
@@ -345,7 +430,17 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
   };
 
   const handleAddProduct = () => {
+    console.log('handleAddProduct called with:', {
+      newProductData,
+      existingProductData,
+      formData,
+      userRole,
+      selectedProducts: selectedProducts.length,
+      isSuperAdmin: userRole === 'super_admin'
+    });
+
     if (!isNewProductValid()) {
+      console.log('Product validation failed');
       return;
     }
 
@@ -355,9 +450,55 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     const existingInSelected = selectedProducts.some(p => p.tracking_number === trackingNumber);
     
     if (existingInAdded || existingInSelected) {
+      console.log('Tracking number already exists');
       setErrorMessage(`ລະຫັດສິນຄ້ານີ້ ${trackingNumber} ມີແລ້ວ`);
       setShowErrorPopup(true);
       return;
+    }
+
+    // Status validation: Check if tracking number status differs from current status field
+    // TEMPORARY: Force validation for all users to test
+    if (existingProductData) {
+      const trackingStatus = existingProductData.status;
+      
+      console.log('Status validation check:', {
+        trackingStatus,
+        currentStatus: formData.currentStatus,
+        userRole,
+        existingProductData
+      });
+      
+      // If current status is set, check if it matches tracking number status
+      if (formData.currentStatus && trackingStatus && formData.currentStatus !== trackingStatus) {
+        const currentStatusLabel = getStatusLabel(formData.currentStatus);
+        const trackingStatusLabel = getStatusLabel(trackingStatus);
+        console.log('🚨 STATUS MISMATCH DETECTED - BLOCKING ADD:', {
+          trackingStatus,
+          trackingStatusLabel,
+          currentStatus: formData.currentStatus,
+          currentStatusLabel,
+          userRole
+        });
+        setErrorMessage(`<span style="color: black;">ສະຖານະຕ້ອງເປັນ:</span> <span style="color: red; font-weight: bold;">${currentStatusLabel}</span>`);
+        setShowErrorPopup(true);
+        return;
+      }
+      
+      // If statuses match, log success
+      if (formData.currentStatus && trackingStatus && formData.currentStatus === trackingStatus) {
+        console.log('✅ STATUS MATCH - ALLOWING ADD:', {
+          trackingStatus,
+          currentStatus: formData.currentStatus,
+          userRole
+        });
+      }
+      
+      // If no current status is set but we have tracking data, require current status to be set
+      if (!formData.currentStatus && trackingStatus) {
+        setErrorMessage('ກະລຸນາເລືອກສະຖານະປະຈຸບັນກ່ອນ');
+        setShowErrorPopup(true);
+        return;
+      }
     }
 
     // Status validation: Check if the status in the table (selectedProducts) matches the current status
@@ -373,10 +514,10 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
           return;
         }
         
-        // Check if the status matches the current status
-        if (firstStatus !== formData.currentStatus) {
+        // Also check if the tracking number status matches the selected products status
+        if (existingProductData && existingProductData.status !== firstStatus) {
           const currentStatusLabel = getStatusLabel(firstStatus);
-          setErrorMessage(`ສະຖານະ: ${currentStatusLabel}`);
+          setErrorMessage(`ສະຖານະຕ້ອງເປັນ: <span style="color: red; font-weight: bold;">${currentStatusLabel}</span>`);
           setShowErrorPopup(true);
           return;
         }
@@ -562,6 +703,15 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       return;
     }
 
+    // Check for rollback restriction for Lao Admin
+    if (userRole === 'lao_admin' && formData.currentStatus && formData.newStatus) {
+      if (isRollback(formData.currentStatus, formData.newStatus)) {
+        setErrorMessage('ແອັດມິນສາຂາລາວບໍ່ສາມາດກັບຄືນສະຖານະໄດ້');
+        setShowErrorPopup(true);
+        return;
+      }
+    }
+
     const token = AuthService.getStoredToken();
     if (!token) {
       setErrorMessage('ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນ');
@@ -572,14 +722,14 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     setIsUpdating(true);
 
     try {
-      // Check if we have products to update
-      if (selectedProducts.length === 0 && addedProducts.length === 0) {
-        // When no products selected and no new products added, show error
-        setErrorMessage('ກະລຸນາເລືອກສິນຄ້າຈາກຕາຕະລາງ ຫຼື ເພີ່ມສິນຄ້າໃໝ່');
-        setShowErrorPopup(true);
-        setIsUpdating(false);
-        return;
-      }
+        // Check if we have products to update
+        if (selectedProducts.length === 0 && addedProducts.length === 0) {
+          // When no products selected and no new products added, show error
+          setErrorMessage('ກະລຸນາເລືອກສິນຄ້າຈາກຕາຕະລາງ ຫຼື ເພີ່ມສິນຄ້າໃໝ່');
+          setShowErrorPopup(true);
+          setIsUpdating(false);
+          return;
+        }
 
       // Prepare the bulk update data based on user role
       // Combine selected products and added products, applying edits to selected products
@@ -590,7 +740,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         })),
         ...addedProducts
       ];
-
+      
       const updateData = {
         orders: allProducts.map(product => {
           const orderUpdate: any = {
@@ -643,10 +793,13 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
         if (result.success) {
           setShowSuccessPopup(true);
 
+          // Reset status fields lock after successful update
+          setStatusFieldsLocked(false);
+
           // Call success callback and close dialog
-          if (onUpdateSuccess) {
-            onUpdateSuccess();
-          }
+            if (onUpdateSuccess) {
+              onUpdateSuccess();
+            }
           
           // Close dialog after successful update
           onOpenChange(false);
@@ -668,7 +821,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       setIsUpdating(false);
     }
   };
-
+  
   const handleCancel = () => {
     // Cancel directly without showing popup
     confirmCancel();
@@ -696,12 +849,22 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
     setEditFormData({});
     setInlineEditingId(null);
     setInlineEditData({});
+    if (onClose) {
+      onClose();
+    }
     onOpenChange(false);
   };
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={(open) => {
+        if (!open) {
+          if (onClose) {
+            onClose();
+          }
+        }
+        onOpenChange(open);
+      }}>
         <DialogContent className="max-w-sm w-full mx-2 sm:mx-4 max-h-[95vh] sm:max-h-[100vh] sm:max-w-2xl md:max-w-3xl lg:max-w-5xl xl:max-w-7xl bg-white flex flex-col">
           <div className="flex-1 overflow-y-auto p-6">
             {/* Title */}
@@ -721,23 +884,18 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                     ສະຖານະປະຈຸບັນ <span className="text-red-500">*</span>
                   </label>
                   <select
-                    className={`w-full p-3 border border-gray-300 rounded-md ${selectedProducts.length === 0
-                        ? (trackingDataFound ? 'bg-gray-100 text-gray-700' : 'bg-white text-gray-700')
-                        : 'bg-gray-100 text-gray-700'
-                      }`}
+                    className={`w-full p-3 border border-gray-300 rounded-md ${statusFieldsLocked || selectedProducts.length > 0 || trackingDataFound
+                        ? 'bg-gray-100 text-gray-700'
+                        : 'bg-white text-gray-700'
+                    }`}
                     value={formData.currentStatus}
-                    disabled={selectedProducts.length > 0 || trackingDataFound}
+                    disabled={statusFieldsLocked || selectedProducts.length > 0 || trackingDataFound}
                     onChange={(e) => setFormData(prev => ({ ...prev, currentStatus: e.target.value }))}
                   >
-                    {!trackingDataFound && (
-                      <option value="">
-                        {selectedProducts.length === 0
-                          ? 'ກະລຸນາເລືອກສະຖານະທີ່ຕ້ອງການອັບເດດ'
-                          : formData.currentStatus === 'MIXED_STATUS'
-                            ? 'ສະຖານະຕ່າງກັນ (ບໍ່ສາມາດອັບເດດໄດ້)'
-                            : getStatusLabel(formData.currentStatus) || 'ກະລຸນາເລືອກ'
-                        }
-                      </option>
+                    {!trackingDataFound && selectedProducts.length === 0 && (
+                    <option value="">
+                        ກະລຸນາເລືອກສະຖານະທີ່ຕ້ອງການອັບເດດ
+                    </option>
                     )}
                     {selectedProducts.length === 0 && (
                       trackingDataFound && formData.currentStatus ? (
@@ -746,11 +904,19 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                         </option>
                       ) : (
                         getStatusOptionsForRole(userRole || '').map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
                         ))
                       )
+                    )}
+                    {selectedProducts.length > 0 && formData.currentStatus && (
+                      <option value={formData.currentStatus}>
+                        {formData.currentStatus === 'MIXED_STATUS'
+                          ? 'ສະຖານະຕ່າງກັນ (ບໍ່ສາມາດອັບເດດໄດ້)'
+                          : getStatusLabel(formData.currentStatus)
+                        }
+                      </option>
                     )}
                   </select>
                 </div>
@@ -971,19 +1137,19 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                           )}
                           {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ສະກຸນເງິນ</th>
-                          )}
-                          {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+                        )}
+                        {(userRole === 'super_admin' || userRole === 'lao_admin') && (
                             <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ການຊຳລະ</th>
-                          )}
+                        )}
                           <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ໝາຍເຫດ</th>
                           <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">ຈັດການ</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {/* If no products */}
-                        {addedProducts.length === 0 && selectedProducts.length === 0 ? (
-                          <tr>
-                            <td colSpan={userRole === 'super_admin' || userRole === 'lao_admin' ? 8 : 5} className="px-3 py-12">
+                          {/* If no products */}
+  {addedProducts.length === 0 && selectedProducts.length === 0 ? (
+    <tr>
+      <td colSpan={userRole === 'super_admin' || userRole === 'lao_admin' ? 8 : 5} className="px-3 py-12">
                               <div className="flex flex-col items-center justify-center">
                                 <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mb-4">
                                   <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1101,18 +1267,18 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                         <option value="true">ຊຳລະແລ້ວ</option>
                                       </select>
                                     ) : (
-                                      <span
+                                    <span
                                         className={`px-2 py-1 rounded-full text-xs font-medium ${getDisplayValue(product, 'is_paid') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                          }`}
-                                      >
+                                        }`}
+                                    >
                                         {getDisplayValue(product, 'is_paid') ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                                      </span>
+                                    </span>
                                     )}
                                   </td>
                                 )}
                                 
                                 {/* Remark */}
-                                <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
+                                  <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">
                                   {inlineEditingId === product.id ? (
                                     <textarea
                                       className="w-full p-1 border border-gray-300 rounded text-sm placeholder-[#818A91] resize-none"
@@ -1155,36 +1321,36 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                     </>
                                   ) : (
                                     <>
-                                      {/* Edit button */}
-                                      <button
+                                  {/* Edit button */}
+                                  <button
                                         onClick={() => handleEditProduct(product.id)}
-                                        className="text-blue-600 hover:text-blue-800"
-                                        title="ແກ້ໄຂ"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"
-                                          />
-                                        </svg>
-                                      </button>
-                                      {/* Delete button */}
-                                      <button
-                                        onClick={() => handleRemoveProduct(product.id)}
-                                        className="text-red-600 hover:text-red-800"
-                                        title="ລຶບ"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={2}
-                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                          />
-                                        </svg>
-                                      </button>
+                                    className="text-blue-600 hover:text-blue-800"
+                                    title="ແກ້ໄຂ"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"
+                                      />
+                                    </svg>
+                                  </button>
+                                  {/* Delete button */}
+                                  <button
+                                    onClick={() => handleRemoveProduct(product.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                    title="ລຶບ"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                  </button>
                                     </>
                                   )}
                                 </td>
@@ -1194,7 +1360,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                             {/* Selected products */}
                             {selectedProducts.map((product, index) => (
                               <tr key={`selected-${product.id}`} className="hover:bg-gray-50" data-product-id={product.id}>
-                                <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">{index + 1}</td>
+                                <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap">{addedProducts.length + index + 1}</td>
                                 
                                 {/* Client Name - Editable */}
                                 <td className="px-3 py-3 text-sm text-gray-900 whitespace-nowrap overflow-x-auto max-w-[150px]">
@@ -1300,12 +1466,12 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                         <option value="true">ຊຳລະແລ້ວ</option>
                                       </select>
                                     ) : (
-                                      <span
+                                    <span
                                         className={`px-2 py-1 rounded-full text-xs font-medium ${getDisplayValue(product, 'is_paid') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                          }`}
-                                      >
+                                        }`}
+                                    >
                                         {getDisplayValue(product, 'is_paid') ? 'ຊຳລະແລ້ວ' : 'ຍັງບໍ່ຊຳລະ'}
-                                      </span>
+                                    </span>
                                     )}
                                   </td>
                                 )}
@@ -1325,26 +1491,26 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                       {getDisplayValue(product, 'remark') || '-'}
                                     </CopyText>
                                   )}
-                                </td>
+                              </td>
                                 {/* Actions */}
                                 <td className="px-3 py-3 text-sm flex items-center space-x-3 whitespace-nowrap">
                                   {inlineEditingId === product.id ? (
                                     <>
                                       {/* Save button */}
-                                      <button
+                                <button 
                                         onClick={handleSaveInlineEdit}
                                         className="text-green-600 hover:text-green-800"
                                         title="ບັນທຶກ"
-                                      >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                >
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                           <path
                                             strokeLinecap="round"
                                             strokeLinejoin="round"
                                             strokeWidth={2}
                                             d="M5 13l4 4L19 7"
                                           />
-                                        </svg>
-                                      </button>
+                                  </svg>
+                                </button>
                                       {/* Cancel button */}
                                       <button
                                         onClick={handleCancelInlineEdit}
@@ -1358,7 +1524,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                             strokeWidth={2}
                                             d="M6 18L18 6M6 6l12 12"
                                           />
-                                        </svg>
+                                </svg>
                                       </button>
                                     </>
                                   ) : (
@@ -1376,7 +1542,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                             strokeWidth={2}
                                             d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2.414a2 2 0 01.586-1.414z"
                                           />
-                                        </svg>
+                                </svg>
                                       </button>
                                       {/* Delete button */}
                                       <button
@@ -1395,15 +1561,15 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
                                       </button>
                                     </>
                                   )}
-                                </td>
-                              </tr>
+                          </td>
+                        </tr>
                             ))}
                           </>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
+              </div>
               </div>
             </div>
             {/* Bottom Action Buttons */}
@@ -1418,7 +1584,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
               <button
                 type="button"
                 onClick={handleUpdate}
-                disabled={!isFormValid() || isUpdating}
+                 disabled={!isFormValid() || isUpdating}
                 className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isUpdating ? 'ກຳລັງອັບເດດ...' : 'ອະນຸມັດ'}
