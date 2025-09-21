@@ -372,10 +372,10 @@ export const RoleBasedEditDialog: React.FC<RoleBasedEditDialogProps> = ({
                     onChange={(e) => handleInputChange('status', e.target.value)}
                   >
                     <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
-                    <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
+                    <option value="EXIT_THAI_BRANCH">ສິນຄ້າອອກຈາກໄທ</option>
                     {userRole !== 'thai_admin' && (
                       <>
-                        <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                        <option value="AT_LAO_BRANCH">ສິນຄ້າຮອດລາວ</option>
                         <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
                       </>
                     )}

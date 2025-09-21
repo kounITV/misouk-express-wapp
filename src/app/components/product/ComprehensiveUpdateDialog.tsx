@@ -88,8 +88,8 @@ interface NewProductData {
 
 const STATUS_OPTIONS = [
   { value: 'AT_THAI_BRANCH', label: 'ສິນຄ້າຮອດໄທ' },
-  { value: 'EXIT_THAI_BRANCH', label: 'ສິ້ນຄ້າອອກຈາກໄທ' },
-  { value: 'AT_LAO_BRANCH', label: 'ສິ້ນຄ້າຮອດລາວ' },
+  { value: 'EXIT_THAI_BRANCH', label: 'ສິນຄ້າອອກຈາກໄທ' },
+  { value: 'AT_LAO_BRANCH', label: 'ສິນຄ້າຮອດລາວ' },
   { value: 'COMPLETED', label: 'ລູກຄ້າຮັບເອົາສິນຄ້າ' }
 ];
 
@@ -98,7 +98,7 @@ const getStatusOptionsForRole = (userRole: string) => {
   if (userRole === 'thai_admin') {
     return [
       { value: 'AT_THAI_BRANCH', label: 'ສິນຄ້າຮອດໄທ' },
-      { value: 'EXIT_THAI_BRANCH', label: 'ສິ້ນຄ້າອອກຈາກໄທ' }
+      { value: 'EXIT_THAI_BRANCH', label: 'ສິນຄ້າອອກຈາກໄທ' }
     ];
   }
   return STATUS_OPTIONS;

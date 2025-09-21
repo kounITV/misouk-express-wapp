@@ -530,7 +530,7 @@ export default function ReportPage() {
                     />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-xs text-gray-600 mb-1">ວັນທີສິ້ນສຸດ (ສະຫຼຸບ)</label>
+                  <label className="text-xs text-gray-600 mb-1">ວັນທີສິນສຸດ (ສະຫຼຸບ)</label>
                   <input 
                     type="date" 
                     value={summaryEndDate}
@@ -700,7 +700,7 @@ export default function ReportPage() {
 
                   {/* End Date Picker */}
                   <div className="flex flex-col">
-                    <label className="text-xs text-gray-600 mb-1">ວັນທີສິ້ນສຸດ</label>
+                    <label className="text-xs text-gray-600 mb-1">ວັນທີສິນສຸດ</label>
                     <input
                       type="date"
                       value={ordersEndDate}

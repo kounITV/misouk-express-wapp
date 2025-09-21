@@ -40,9 +40,9 @@ export const PRODUCT_TEXT = {
   // Status options
   STATUS_OPTIONS: {
     AT_THAI_BRANCH: 'ສິນຄ້າຮອດໄທ',
-    IN_TRANSIT: 'ສິ້ນຄ້າອອກຈາກໄທ',
-    AT_LAO_BRANCH: 'ສິ້ນຄ້າຮອດລາວ',
-    DELIVERED: 'ລູກຄ້າຮັບເອົາສິນຄ້າ',
+    IN_TRANSIT: 'ສິນຄ້າອອກຈາກໄທ',
+    AT_LAO_BRANCH: 'ສິນຄ້າຮອດລາວ',
+    COMPLETED: 'ລູກຄ້າຮັບເອົາສິນຄ້າ',
   },
 
   // Currency options

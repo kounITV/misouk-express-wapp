@@ -27,11 +27,11 @@ export const STATUS_CONFIG: StatusConfig = {
     color: 'text-white'
   },
   'EXIT_THAI_BRANCH': {
-    label: 'ສິ້ນຄ້າອອກຈາກໄທ',
+    label: 'ສິນຄ້າອອກຈາກໄທ',
     color: 'text-white'
   },
   'AT_LAO_BRANCH': {
-    label: 'ສິ້ນຄ້າຮອດລາວ',
+    label: 'ສິນຄ້າຮອດລາວ',
     color: 'text-white'
   },
   'COMPLETED': {

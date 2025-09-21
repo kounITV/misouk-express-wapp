@@ -38,8 +38,8 @@ interface NewProductData {
 
 const STATUS_OPTIONS = [
   { value: 'AT_THAI_BRANCH', label: 'ສິນຄ້າຮອດໄທ' },
-  { value: 'EXIT_THAI_BRANCH', label: 'ສິ້ນຄ້າອອກຈາກໄທ' },
-  { value: 'AT_LAO_BRANCH', label: 'ສິ້ນຄ້າຮອດລາວ' },
+  { value: 'EXIT_THAI_BRANCH', label: 'ສິນຄ້າອອກຈາກໄທ' },
+  { value: 'AT_LAO_BRANCH', label: 'ສິນຄ້າຮອດລາວ' },
   { value: 'COMPLETED', label: 'ລູກຄ້າຮັບເອົາສິນຄ້າ' }
 ];
 
@@ -79,7 +79,7 @@ const getStatusOptionsForRole = (userRole: string) => {
   if (userRole === 'thai_admin') {
     return [
       { value: 'AT_THAI_BRANCH', label: 'ສິນຄ້າຮອດໄທ' },
-      { value: 'EXIT_THAI_BRANCH', label: 'ສິ້ນຄ້າອອກຈາກໄທ' }
+      { value: 'EXIT_THAI_BRANCH', label: 'ສິນຄ້າອອກຈາກໄທ' }
     ];
   }
   return STATUS_OPTIONS;
@@ -533,7 +533,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       amount: userRole === 'thai_admin' ? existingProductData.amount : parseFloat(newProductData.amount),
       currency: userRole === 'thai_admin' ? existingProductData.currency : newProductData.currency,
       is_paid: userRole === 'thai_admin' ? existingProductData.is_paid : newProductData.isPaid,
-      remark: newProductData.remark,
+      remark: newProductData.remark && newProductData.remark.trim() !== '' ? newProductData.remark.trim() : null,
       // Keep original timestamps and creator info
     } : {
       // Create new product if no existing data
@@ -545,7 +545,7 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
       currency: userRole === 'thai_admin' ? null : newProductData.currency,
       status: 'AT_THAI_BRANCH',
       is_paid: userRole === 'thai_admin' ? false : newProductData.isPaid,
-      remark: newProductData.remark,
+      remark: newProductData.remark && newProductData.remark.trim() !== '' ? newProductData.remark.trim() : null,
       created_by: '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -755,9 +755,11 @@ export const UpdateStatusProductDialog: React.FC<UpdateStatusProductDialogProps>
             orderUpdate.client_phone = product.client_phone.trim();
           }
 
-          // Include remark field for all roles
-          if (product.remark !== null && product.remark !== undefined) {
-            orderUpdate.remark = product.remark;
+          // Include remark field for all roles - set to null if empty
+          if (product.remark && product.remark.trim() !== '') {
+            orderUpdate.remark = product.remark.trim();
+          } else {
+            orderUpdate.remark = null;
           }
 
           // Only include amount, currency, and is_paid for non-thai_admin roles

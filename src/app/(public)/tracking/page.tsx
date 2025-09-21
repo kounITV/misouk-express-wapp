@@ -23,7 +23,7 @@ export default function TrackingPage() {
     const handleDirectSearch = async () => {
         if (trackingNumber.trim()) {
             try {
-                const response = await fetch(`${apiEndpoints.orders}/tracking?tracking_number=${encodeURIComponent(trackingNumber.trim())}`, {
+                const response = await fetch(`${apiEndpoints.orders}/tracking/${encodeURIComponent(trackingNumber.trim())}`, {
                     method: 'GET',
                     headers: {
                         'Content-Type': 'application/json',

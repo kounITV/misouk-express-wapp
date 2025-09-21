@@ -7,6 +7,7 @@ import { PRODUCT_TEXT, LABELS, PLACEHOLDERS, STATUS_OPTIONS, CURRENCY_OPTIONS, P
 import { Product } from "../../types/product";
 import { apiEndpoints } from "@/lib/config";
 import { AuthService } from "@/lib/auth-service";
+import { formatCurrency } from "@/lib/utils/product";
 import SuccessPopup from "../ui/success-popup";
 import AlertPopup from "../ui/alert-popup";
 
@@ -182,7 +183,7 @@ const ProductDialog = memo(({
       client_name: form.senderName,
       client_phone: form.senderPhone ? form.senderPhone : null,
       amount: form.amount ? parseFloat(form.amount) : null,
-      currency: (form.currency && form.currency !== 'LAK') ? form.currency : null,
+      currency: form.currency || null,
       status: form.status,
       is_paid: form.isPaid,
       remark: form.remark || null,
@@ -294,9 +295,16 @@ const ProductDialog = memo(({
             // Handle API error response
             let errorMessage = result.message || 'ບໍ່ສາມາດເພີ່ມສິນຄ້າໄດ້';
 
-            // If there are specific errors, show them
-            if (result.errors && Array.isArray(result.errors) && result.errors.length > 0) {
-              errorMessage = result.errors.join('\n');
+            // If there are specific validation errors, show them
+            if (result.error && Array.isArray(result.error) && result.error.length > 0) {
+              // Extract field-specific error messages
+              const fieldErrors = result.error.map((err: any) => {
+                if (err.message) {
+                  return err.message;
+                }
+                return `${err.field}: ${err.type}`;
+              });
+              errorMessage = fieldErrors.join('\n');
             }
 
             showAlert(errorMessage, 'error', 'ຜິດພາດ');
@@ -314,9 +322,15 @@ const ProductDialog = memo(({
           const errorResult = JSON.parse(responseText);
           if (errorResult.message) {
             errorMessage = errorResult.message;
-            // If there are specific errors, show them
-            if (errorResult.errors && Array.isArray(errorResult.errors) && errorResult.errors.length > 0) {
-              errorMessage += '\n' + errorResult.errors.join('\n');
+            // If there are specific validation errors, show them
+            if (errorResult.error && Array.isArray(errorResult.error) && errorResult.error.length > 0) {
+              const fieldErrors = errorResult.error.map((err: any) => {
+                if (err.message) {
+                  return err.message;
+                }
+                return `${err.field}: ${err.type}`;
+              });
+              errorMessage += '\n' + fieldErrors.join('\n');
             }
           }
         } catch (parseError) {
@@ -366,10 +380,10 @@ const ProductDialog = memo(({
                       >
                         <option value="">{PLACEHOLDERS.SELECT_STATUS}</option>
                         <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
-                        <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
+                        <option value="EXIT_THAI_BRANCH">ສິນຄ້າອອກຈາກໄທ</option>
                         {(userRole as string) !== 'thai_admin' && (
                           <>
-                            <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                            <option value="AT_LAO_BRANCH">ສິນຄ້າຮອດລາວ</option>
                             <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
                           </>
                         )}
@@ -455,7 +469,8 @@ const ProductDialog = memo(({
                       </label>
                       <select
                         className="w-full p-3 border border-[#dddddd] rounded-md bg-[#ffffff] text-[#0d0d0d] focus:ring-[#015c96] focus:border-[#015c96]"
-                        value={form.currency === 'LAK' ? '' : form.currency}
+                        value={form.currency || ""}
+                        //value={form.currency === 'LAK' ? '' : form.currency}
                         onChange={(e) => handleInputChange('currency', e.target.value)}
                       >
                         <option value="">{PLACEHOLDERS.SELECT_CURRENCY}</option>
@@ -653,11 +668,12 @@ const ProductDialog = memo(({
                                     onChange={(e) => setEditingData({ ...editingData, currency: e.target.value })}
                                     className="w-full px-1 py-1 text-xs border border-gray-300 rounded"
                                   >
+                                    <option value="">ເລືອກ</option>
                                     <option value="LAK">ກີບ</option>
                                     <option value="THB">ບາດ</option>
                                   </select>
                                 ) : (
-                                  product.currency === 'LAK' ? 'ກີບ' : product.currency === 'THB' ? 'ບາດ' : product.currency
+                                  formatCurrency(product.currency)
                                 )}
                               </td>
                             )}

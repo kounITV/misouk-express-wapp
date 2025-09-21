@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Menu, Package, Users, FileText, X, ShoppingCart, LogOut, User } from 'lucide-react';
+import { Menu, Package, Users, FileText, X, ShoppingCart, LogOut, User, Search } from 'lucide-react';
 import { Button } from './button';
 import Image from 'next/image';
 
@@ -43,6 +43,13 @@ const menuItems: MenuItem[] = [
     text: 'ໜ້າຈັດການພະນັກງານ',
     href: '/user',
     roles: ['super_admin']
+  },
+  {
+    id: 'data-check',
+    icon: <Search className="w-6 h-6" />,
+    text: 'ໜ້າກວດສອບຂໍ້ມູນ',
+    href: '/data-check',
+    roles: ['super_admin', 'normal_user']
   },
   {
     id: 'report',
@@ -98,9 +105,14 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({
   }, [isMobile, isMobileMenuOpen, onMobileMenuToggle]);
 
   // Filter menu items based on user role
-  const visibleMenuItems = menuItems.filter(item => 
-    item.roles.includes(currentUserRole)
-  );
+  const visibleMenuItems = menuItems.filter(item => {
+    // For normal_user, only show data-check menu
+    if (currentUserRole === 'normal_user') {
+      return item.id === 'data-check';
+    }
+    // For other roles, show all their allowed menus
+    return item.roles.includes(currentUserRole);
+  });
 
   const handleMenuClick = (href: string) => {
     if (onMenuClick) {

@@ -17,6 +17,7 @@ import { Pagination } from "@/components/ui/pagination";
 import { SidebarMenu } from "@/components/ui/sidebar-menu";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import { SuccessPopup } from "@/components/ui/success-popup";
+import ReceiptPopup from "@/components/ui/receipt-popup";
 import { apiEndpoints } from "@/lib/config";
 import { getRolePermissions, normalizeRole } from "@/lib/utils/role-permissions";
 import { createOrder, CreateOrderData } from "@/lib/api/orders";
@@ -196,16 +197,16 @@ const getUserFriendlyErrorMessage = (error: any): string => {
 
     // Handle error arrays
     if (error.error && Array.isArray(error.error) && error.error.length > 0) {
-      const firstError = error.error[0];
-      if (firstError.message) {
-        if (firstError.message.includes('ສະຖານະທີ່ອະນຸຍາດມີແຕ່ EXIT_THAI_BRANCH ເທົ່ານັ້ນ')) {
-          return 'ກະລຸນາເລືອກສະຖານະ EXIT_THAI_BRANCH';
+      // Extract all validation error messages
+      const errorMessages = error.error.map((err: any) => {
+        if (err.message) {
+          return err.message;
         }
-        if (firstError.message.includes('ລາຄາຕ້ອງບໍ່ຕິດລົບ')) {
-          return 'ກະລຸນາຕື່ມຂໍ້ມູນໃຫ້ຖືກຕ້ອງ';
-        }
-        return firstError.message;
-      }
+        return `${err.field}: ${err.type}`;
+      });
+      
+      // Return all error messages joined with newlines
+      return errorMessages.join('\n');
     }
   }
 
@@ -304,6 +305,8 @@ export default function ProductManagementPage() {
   const [showCopySuccess, setShowCopySuccess] = useState<boolean>(false);
   const [showDeleteSuccess, setShowDeleteSuccess] = useState<boolean>(false);
   const [showCreateSuccess, setShowCreateSuccess] = useState<boolean>(false);
+  const [showReceiptPopup, setShowReceiptPopup] = useState<boolean>(false);
+  const [productForReceipt, setProductForReceipt] = useState<Product | null>(null);
 
   // Helper function to handle API error responses
   const handleApiError = async (response: Response) => {
@@ -340,18 +343,6 @@ export default function ProductManagementPage() {
     next_page: null,
     prev_page: null,
   });
-  const [form, setForm] = useState({
-    productCode: "",
-    senderName: "",
-    receiverName: "",
-    senderPhone: "",
-    amount: "",
-    currency: "LAK",
-    serviceType: "send_money",
-    status: "EXIT_THAI_BRANCH",
-    isPaid: false,
-    remark: "",
-  });
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
@@ -359,6 +350,8 @@ export default function ProductManagementPage() {
 
   // Get user role and permissions
   const userRole = normalizeRole(currentUser?.role ? (typeof currentUser.role === 'string' ? currentUser.role : currentUser.role.name) : undefined);
+  
+  const [form, setForm] = useState<FormData>(resetForm(userRole));
   const permissions = getRolePermissions(userRole);
 
   // Debug logging for thai_admin
@@ -531,7 +524,7 @@ export default function ProductManagementPage() {
           status: form.status || 'AT_THAI_BRANCH',
           is_paid: false,
           amount: form.amount ? parseFloat(form.amount) : 0,
-          currency: form.currency || 'LAK'
+          currency: form.currency || null
         };
       }
 
@@ -548,7 +541,7 @@ export default function ProductManagementPage() {
           client_name: form.senderName,
           client_phone: form.senderPhone,
           amount: userRole === 'thai_admin' ? null : (form.amount ? parseFloat(form.amount) : null),
-          currency: userRole === 'thai_admin' ? null : (form.currency || 'LAK'),
+          currency: userRole === 'thai_admin' ? null : (form.currency || null),
           status: form.status || 'AT_THAI_BRANCH',
           is_paid: false,
           remark: form.remark || null,
@@ -631,18 +624,7 @@ export default function ProductManagementPage() {
 
       setOpenCreate(false);
       setEditingProduct(null);
-      setForm({
-        productCode: "",
-        senderName: "",
-        receiverName: "",
-        senderPhone: "",
-        amount: "",
-        currency: "LAK",
-        serviceType: "send_money",
-        status: "AT_THAI_BRANCH",
-        isPaid: false,
-        remark: "",
-      });
+      setForm(resetForm(userRole));
       await fetchProducts(pagination.current_page, itemsPerPage);
     } catch (e) {
       console.error(e);
@@ -703,7 +685,7 @@ export default function ProductManagementPage() {
       receiverName: "",
       senderPhone: product.client_phone || "",
       amount: product.amount?.toString() || "",
-      currency: product.currency || "LAK",
+      currency: product.currency || "",
       serviceType: "send_money",
       status: product.status,
       isPaid: product.is_paid,
@@ -829,6 +811,12 @@ export default function ProductManagementPage() {
     setOpenRoleBasedEdit(true);
   }, []);
 
+  // Handle opening receipt popup
+  const handleOpenReceiptPopup = useCallback((product: Product) => {
+    setProductForReceipt(product);
+    setShowReceiptPopup(true);
+  }, []);
+
   // Handle role-based create
   const handleRoleBasedCreate = useCallback(async (data: CreateOrderData) => {
     let orderData: CreateOrderData;
@@ -873,7 +861,7 @@ export default function ProductManagementPage() {
         client_name: data.client_name,
         client_phone: data.client_phone || null,
         amount: data.amount || null,
-        currency: data.currency || 'LAK',
+        currency: data.currency || null,
         status: data.status || 'AT_THAI_BRANCH',
         is_paid: false,
         remark: data.remark || null,
@@ -1164,7 +1152,7 @@ export default function ProductManagementPage() {
   }, [pagination.current_page, itemsPerPage]);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row overflow-x-hidden">
       {/* Responsive Sidebar */}
       <SidebarMenu
         currentUserRole={currentUser?.role ? (typeof currentUser.role === 'string' ? currentUser.role : currentUser.role.name) : 'super_admin'}
@@ -1182,7 +1170,7 @@ export default function ProductManagementPage() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex bg-gray-50 flex-col transition-all duration-300 ml-0 lg:ml-0">
+      <div className="flex-1 flex bg-gray-50 flex-col transition-all duration-300 ml-0 lg:ml-0 min-w-0">
         {/* Header */}
         <header className="bg-[#0c64b0] text-white px-4 md:px-6 py-4 flex justify-between lg:justify-end items-center">
           {/* Mobile Menu Button - Hide when menu is open */}
@@ -1213,7 +1201,7 @@ export default function ProductManagementPage() {
           </div>
         </header>
         {/* Content Area */}
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 overflow-hidden">
           <div className="max-w-7xl mx-auto w-full">
             {/* Page Title and Add Button */}
             <div className="flex justify-between items-center mb-6">
@@ -1252,10 +1240,10 @@ export default function ProductManagementPage() {
                   >
                     <option value="">ສະຖານະທັງໝົດ</option>
                     <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
-                    <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
+                    <option value="EXIT_THAI_BRANCH">ສິນຄ້າອອກຈາກໄທ</option>
                     {userRole !== 'thai_admin' && (
                       <>
-                        <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                        <option value="AT_LAO_BRANCH">ສິນຄ້າຮອດລາວ</option>
                         <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
                       </>
                     )}
@@ -1270,14 +1258,6 @@ export default function ProductManagementPage() {
                     >
                       <span className="hidden sm:inline">ອັບເດດສະຖານະ</span>
                       <span className="sm:hidden">ອັບເດດ</span>
-                      {/* {statusFilter && statusFilter.trim() !== '' && selectedItems.size === 0 && (
-                        <span className="bg-white text-[#0c64b0] px-2 py-0.5 rounded-full text-xs font-medium">
-                          {statusFilter === 'AT_THAI_BRANCH' :
-                           statusFilter === 'EXIT_THAI_BRANCH' ? 'ອອກໄທ' :
-                           statusFilter === 'AT_LAO_BRANCH' ? 'ຮອດລາວ' :
-                           statusFilter === 'COMPLETED' ? 'ສຳເລັດ' : statusFilter}
-                        </span>
-                      )} */}
                     </Button>
 
                     {permissions.canCreate && (
@@ -1437,8 +1417,8 @@ export default function ProductManagementPage() {
                                   'bg-green-100 text-green-800'
                               }`}>
                               {product.status === 'AT_THAI_BRANCH' ? 'ສິນຄ້າຮອດໄທ' :
-                                product.status === 'EXIT_THAI_BRANCH' ? 'ສິ້ນຄ້າອອກຈາກໄທ' :
-                                  product.status === 'AT_LAO_BRANCH' ? 'ສິ້ນຄ້າຮອດລາວ' :
+                                product.status === 'EXIT_THAI_BRANCH' ? 'ສິນຄ້າອອກຈາກໄທ' :
+                                  product.status === 'AT_LAO_BRANCH' ? 'ສິນຄ້າຮອດລາວ' :
                                     product.status === 'COMPLETED' ? 'ລູກຄ້າຮັບເອົາສິນຄ້າ' : product.status}
                             </span>
                           </td>
@@ -1525,6 +1505,7 @@ export default function ProductManagementPage() {
                                 onEdit={() => handleOpenEditDialog(product)}
                                 onDelete={() => openDeleteDialog(product)}
                                 onStatusUpdate={async (status) => await handleStatusUpdate(product, status)}
+                                onPrintReceipt={() => handleOpenReceiptPopup(product)}
                                 align="end"
                                 isLastItems={index >= products.length - 3}
                                 currentStatus={product.status}
@@ -1686,6 +1667,13 @@ export default function ProductManagementPage() {
               message="ສ້າງສິນຄ້າສຳເລັດແລ້ວ"
               autoCloseTimer={3000}
               showTimer={true}
+            />
+
+            {/* Receipt Popup */}
+            <ReceiptPopup
+              open={showReceiptPopup}
+              onOpenChange={setShowReceiptPopup}
+              product={productForReceipt}
             />
 
           </div>

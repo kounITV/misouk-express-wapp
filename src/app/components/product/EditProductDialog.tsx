@@ -86,7 +86,7 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
         updatedProduct.is_paid = formData.is_paid;
       }
       if (formData.remark !== undefined) {
-        updatedProduct.remark = formData.remark;
+        updatedProduct.remark = formData.remark && formData.remark.trim() !== '' ? formData.remark.trim() : null;
       }
 
       await onSave(updatedProduct);
@@ -221,10 +221,10 @@ export const EditProductDialog: React.FC<EditProductDialogProps> = ({
                 onChange={(e) => handleInputChange('status', e.target.value)}
               >
                 <option value="AT_THAI_BRANCH">ສິນຄ້າຮອດໄທ</option>
-                <option value="EXIT_THAI_BRANCH">ສິ້ນຄ້າອອກຈາກໄທ</option>
+                <option value="EXIT_THAI_BRANCH">ສິນຄ້າອອກຈາກໄທ</option>
                 {userRole !== 'thai_admin' && (
                   <>
-                    <option value="AT_LAO_BRANCH">ສິ້ນຄ້າຮອດລາວ</option>
+                    <option value="AT_LAO_BRANCH">ສິນຄ້າຮອດລາວ</option>
                     <option value="COMPLETED">ລູກຄ້າຮັບເອົາສິນຄ້າ</option>
                   </>
                 )}

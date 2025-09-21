@@ -141,7 +141,7 @@ const TrackingDetailsPage = () => {
       },
       {
         id: '4',
-        title: 'ລູກຄ້າຮັບສິນຄ້າ',
+        title: 'ລູກຄ້າຮັບເອົາສິນຄ້າ',
         subtitle: '',
         date: formatDate(createdAt),
         time: formatTime(createdAt),
@@ -251,7 +251,7 @@ const TrackingDetailsPage = () => {
                     </div>
                     <div className="text-left md:text-right">
                       <span className="text-gray-600 text-sm">ສະຖານະ: </span>
-                      <span className="text-blue-600 font-medium">ແຈ້ງລູກຄ້າຮັບເຄື່ອງ</span>
+                      <span className="text-blue-600 font-medium">{trackingData.status}</span>
                     </div>
                   </div>
                 </div>
