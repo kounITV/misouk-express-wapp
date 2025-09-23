@@ -35,6 +35,21 @@ const TrackingDetailsPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const getStatusDisplay = (status: string): string => {
+    switch (status) {
+      case 'AT_THAI_BRANCH':
+        return 'ສິນຄ້າຮອດໄທ';
+      case 'EXIT_THAI_BRANCH':
+        return 'ສິນຄ້າອອກຈາກໄທ';
+      case 'AT_LAO_BRANCH':
+        return 'ສິນຄ້າຮອດລາວ';
+      case 'COMPLETED':
+        return 'ລູກຄ້າຮັບເອົາສິນຄ້າ';
+      default:
+        return status;
+    }
+  };
+
   useEffect(() => {
     if (params.trackingNumber) {
       const decodedTrackingNumber = decodeURIComponent(params.trackingNumber as string);
@@ -48,7 +63,10 @@ const TrackingDetailsPage = () => {
     setError('');
 
     try {
-      const response = await fetch(`${apiEndpoints.orders}/tracking/${encodeURIComponent(number)}`, {
+      const apiUrl = `${apiEndpoints.orders}/tracking/${encodeURIComponent(number)}`;
+      console.log('Tracking API URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -56,10 +74,12 @@ const TrackingDetailsPage = () => {
           'Pragma': 'no-cache',
           'Expires': '0',
         },
+        mode: 'cors',
+        credentials: 'omit',
       });
 
       console.log('Tracking API response status:', response.status);
-      console.log('Tracking API URL:', `${apiEndpoints.orders}/tracking/${encodeURIComponent(number)}`);
+      console.log('Tracking API response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
         const result = await response.json();
@@ -73,11 +93,22 @@ const TrackingDetailsPage = () => {
       } else {
         const errorText = await response.text();
         console.error('Tracking API error:', response.status, errorText);
-        setError('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫາ');
+        
+        if (response.status === 404) {
+          setError('ບໍ່ພົບຂໍ້ມູນການຕິດຕາມສິນຄ້າ');
+        } else if (response.status === 500) {
+          setError('ເກີດຂໍ້ຜິດພາດໃນລະບົບ');
+        } else {
+          setError('ເກີດຂໍ້ຜິດພາດໃນການຄົ້ນຫາ');
+        }
       }
     } catch (err) {
       console.error('Tracking fetch error:', err);
-      setError('ເກີດຂໍ້ຜິດພາດໃນການເຊື່ອມຕໍ່');
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        setError('ບໍ່ສາມາດເຊື່ອມຕໍ່ກັບເຊີເວີໄດ້');
+      } else {
+        setError('ເກີດຂໍ້ຜິດພາດໃນການເຊື່ອມຕໍ່');
+      }
     } finally {
       setLoading(false);
     }
@@ -251,7 +282,7 @@ const TrackingDetailsPage = () => {
                     </div>
                     <div className="text-left md:text-right">
                       <span className="text-gray-600 text-sm">ສະຖານະ: </span>
-                      <span className="text-blue-600 font-medium">{trackingData.status}</span>
+                      <span className="text-blue-600 font-medium">{getStatusDisplay(trackingData.status)}</span>
                     </div>
                   </div>
                 </div>

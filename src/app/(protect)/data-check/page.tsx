@@ -286,7 +286,7 @@ export default function DataCheckPage() {
                         placeholder="ປ້ອນລະຫັດສິນຄ້າ ຫຼື ຊື່ລູກຄ້າ"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10 placeholder-[#818A91]"
+                        className="pl-10 placeholder-[#888888] border-black focus:border-black focus:ring-black text-black"
                       />
                     </div>
                   </div>

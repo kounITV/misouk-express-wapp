@@ -23,6 +23,7 @@ import { getRolePermissions, normalizeRole } from "@/lib/utils/role-permissions"
 import { createOrder, CreateOrderData } from "@/lib/api/orders";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
+import { useDirectPrint } from "@/components/ui/direct-print";
 
 // Simple Copy Component for tracking number (no tooltip)
 interface CopyTextProps {
@@ -307,6 +308,9 @@ export default function ProductManagementPage() {
   const [showCreateSuccess, setShowCreateSuccess] = useState<boolean>(false);
   const [showReceiptPopup, setShowReceiptPopup] = useState<boolean>(false);
   const [productForReceipt, setProductForReceipt] = useState<Product | null>(null);
+
+  // Use the direct print hook
+  const { printProductReceipt } = useDirectPrint();
 
   // Helper function to handle API error responses
   const handleApiError = async (response: Response) => {
@@ -816,6 +820,11 @@ export default function ProductManagementPage() {
     setProductForReceipt(product);
     setShowReceiptPopup(true);
   }, []);
+
+  // Handle direct print without popup
+  const handleDirectPrintReceipt = useCallback((product: Product) => {
+    printProductReceipt(product);
+  }, [printProductReceipt]);
 
   // Handle role-based create
   const handleRoleBasedCreate = useCallback(async (data: CreateOrderData) => {
@@ -1416,10 +1425,7 @@ export default function ProductManagementPage() {
                                 product.status === 'AT_LAO_BRANCH' ? 'bg-purple-100 text-purple-800' :
                                   'bg-green-100 text-green-800'
                               }`}>
-                              {product.status === 'AT_THAI_BRANCH' ? 'ສິນຄ້າຮອດໄທ' :
-                                product.status === 'EXIT_THAI_BRANCH' ? 'ສິນຄ້າອອກຈາກໄທ' :
-                                  product.status === 'AT_LAO_BRANCH' ? 'ສິນຄ້າຮອດລາວ' :
-                                    product.status === 'COMPLETED' ? 'ລູກຄ້າຮັບເອົາສິນຄ້າ' : product.status}
+                              {getStatusName(product.status)}
                             </span>
                           </td>
                           {/* ລາຄາ - Only for super_admin and lao_admin */}
@@ -1505,7 +1511,7 @@ export default function ProductManagementPage() {
                                 onEdit={() => handleOpenEditDialog(product)}
                                 onDelete={() => openDeleteDialog(product)}
                                 onStatusUpdate={async (status) => await handleStatusUpdate(product, status)}
-                                onPrintReceipt={() => handleOpenReceiptPopup(product)}
+                                onPrintReceipt={() => handleDirectPrintReceipt(product)}
                                 align="end"
                                 isLastItems={index >= products.length - 3}
                                 currentStatus={product.status}
@@ -1674,6 +1680,7 @@ export default function ProductManagementPage() {
               open={showReceiptPopup}
               onOpenChange={setShowReceiptPopup}
               product={productForReceipt}
+              userRole={userRole}
             />
 
           </div>

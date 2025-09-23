@@ -15,8 +15,8 @@ const HomePageContent = () => {
 
   const handleSearch = () => {
     if (trackingNumber.trim()) {
-      // Redirect to data check page with the tracking number
-      router.push(`/data-check?tracking=${encodeURIComponent(trackingNumber.trim())}`);
+      // Redirect to public tracking page with the tracking number
+      router.push(`/tracking/${encodeURIComponent(trackingNumber.trim())}`);
     }
   };
 
@@ -65,6 +65,7 @@ const HomePageContent = () => {
           </div>
           
           <p className="text-[#247dc9] text-base sm:text-lg font-medium">ກວດສອບຂໍ້ມູນສິນຄ້າ</p>
+          <p className="text-gray-500 text-sm mt-2">ຕົວຢ່າງ: 545, fsafdnsaf</p>
         </div>
       </div>
     </div>

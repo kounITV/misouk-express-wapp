@@ -577,7 +577,7 @@ export default function UserManagementPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col lg:flex-row">
+    <div className="h-screen bg-gray-50 flex flex-col lg:flex-row overflow-hidden">
       {/* Responsive Sidebar */}
       <SidebarMenu
         currentUserRole={currentUser?.role ? (typeof currentUser.role === 'string' ? currentUser.role : currentUser.role.name) : 'super_admin'}
@@ -593,9 +593,9 @@ export default function UserManagementPage() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col transition-all duration-300 ml-0 lg:ml-0">
-        {/* Header */}
-        <header className="bg-[#0c64b0] text-white px-4 md:px-6 py-4 flex justify-between lg:justify-end items-center">
+      <div className="flex-1 flex bg-gray-50 flex-col transition-all duration-300 ml-0 lg:ml-0 min-w-0 h-full">
+        {/* Header - Fixed */}
+        <header className="bg-[#0c64b0] text-white px-4 md:px-6 py-4 flex justify-between lg:justify-end items-center flex-shrink-0">
           {/* Mobile Menu Button - Hide when menu is open */}
           <div className={`lg:hidden ${isMobileMenuOpen ? 'hidden' : 'block'}`}>
             <button 
@@ -624,11 +624,11 @@ export default function UserManagementPage() {
           </div>
         </header>
 
-        {/* Content Area */}
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
+        {/* Content Area - Scrollable */}
+        <main className="flex-1 p-6 overflow-y-auto overflow-x-hidden">
+          <div className="max-w-7xl mx-auto h-full flex flex-col">
             {/* Page Title and Add Button */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-6 flex-shrink-0">
               <h1 className="text-2xl font-semibold text-gray-800">ຈັດການຜູ້ນຳໃຊ້ລະບົບ</h1>
               <Button className="bg-[#0c64b0] hover:bg-[#247dc9] text-white" onClick={() => setOpenCreate(true)}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -637,9 +637,9 @@ export default function UserManagementPage() {
             </div>
 
             {/* User Table */}
-            <Card className="bg-white shadow-sm">
-              <CardContent className="p-6">
-                <div className="overflow-x-auto relative">
+            <Card className="bg-white shadow-sm flex-1 min-h-0 flex flex-col">
+              <CardContent className="p-6 flex-1 overflow-hidden">
+                <div className="overflow-auto h-full">
                    <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>

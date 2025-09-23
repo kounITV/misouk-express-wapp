@@ -206,8 +206,8 @@ export const EnhancedActionsDropdown: React.FC<EnhancedActionsDropdownProps> = (
                   ແກ້ໄຂ
                 </button>
 
-                {/* Print Receipt Option */}
-                {onPrintReceipt && (
+                {/* Print Receipt Option - Only for super_admin and lao_admin */}
+                {onPrintReceipt && (userRole === 'super_admin' || userRole === 'lao_admin') && (
                   <button
                     onClick={() => {
                       onPrintReceipt();

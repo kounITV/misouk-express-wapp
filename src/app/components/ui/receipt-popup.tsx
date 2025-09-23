@@ -1,234 +1,147 @@
 "use client";
 
-import React from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
-import { Button } from './button';
-import { Printer, X } from 'lucide-react';
-import { Product } from '../../types/product';
+import React from "react";
+import { Dialog, DialogContent } from "./dialog";
+import { Button } from "./button";
+import { X } from "lucide-react";
+import { Product } from "../../types/product";
+import { ReceiptPrint } from "./receipt-print";
 
 interface ReceiptPopupProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   product: Product | null;
+  userRole?: string | null;
 }
 
-const ReceiptPopup: React.FC<ReceiptPopupProps> = ({ open, onOpenChange, product }) => {
-  const [printTime, setPrintTime] = React.useState<string>('');
-  
+const ReceiptPopup: React.FC<ReceiptPopupProps> = ({
+  open,
+  onOpenChange,
+  product,
+  userRole,
+}) => {
   if (!product) return null;
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-GB') + ' ' + date.toLocaleTimeString('en-GB', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
-    });
-  };
-
-  const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'AT_THAI_BRANCH': return 'ສິນຄ້າຮອດໄທ';
-      case 'EXIT_THAI_BRANCH': return 'ສິນຄ້າອອກຈາກໄທ';
-      case 'AT_LAO_BRANCH': return 'ສິນຄ້າຮອດລາວ';
-      case 'COMPLETED': return 'ລູກຄ້າຮັບເອົາສິນຄ້າ';
-      default: return status;
-    }
-  };
-
-  const formatCurrency = (currency: string | null): string => {
-    if (!currency) return 'LAK';
-    return currency === 'LAK' ? 'ກີບ' : currency === 'THB' ? 'ບາດ' : currency;
-  };
 
   const getCurrentTime = () => {
     const now = new Date();
-    return now.toLocaleDateString('en-GB') + ' ' + now.toLocaleTimeString('en-GB', { 
-      hour: '2-digit', 
-      minute: '2-digit', 
-      second: '2-digit' 
-    });
+    return (
+      now.toLocaleDateString("en-GB") +
+      " " +
+      now.toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      })
+    );
   };
 
-  const handlePrint = () => {
-    // Set current time when printing
-    setPrintTime(getCurrentTime());
-    
-    // Create a temporary print stylesheet
-    const printStyles = `
-      <style>
-        @media print {
-          body * { visibility: hidden; }
-          .receipt-print, .receipt-print * { visibility: visible; }
-          .receipt-print { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            max-width: 400px; 
-            margin: 0 auto; 
-            background: white; 
-            padding: 20px;
-            font-family: Arial, sans-serif;
-          }
-          .no-print { display: none !important; }
-        }
-        .receipt-print { 
-          max-width: 400px; 
-          margin: 0 auto; 
-          background: white; 
-          padding: 20px;
-          font-family: Arial, sans-serif;
-        }
-        .header { 
-          text-align: center; 
-          margin-bottom: 20px; 
-        }
-        .company-name { 
-          font-size: 24px; 
-          font-weight: bold; 
-          color: #0c64b0; 
-          margin-bottom: 5px;
-        }
-        .company-subtitle { 
-          font-size: 14px; 
-          color: #333; 
-        }
-        .details { 
-          margin-bottom: 20px; 
-        }
-        .detail-row { 
-          display: flex; 
-          justify-content: space-between; 
-          margin-bottom: 8px; 
-          font-size: 14px;
-        }
-        .detail-label { 
-          color: #777777; 
-        }
-        .detail-value { 
-          font-weight: 500; 
-          color: #333;
-        }
-        .barcode-section { 
-          text-align: center; 
-          margin: 20px 0; 
-          padding: 20px 0; 
-          border-top: 1px solid #ddd; 
-          border-bottom: 1px solid #ddd;
-        }
-        .barcode { 
-          font-family: monospace; 
-          font-size: 18px; 
-          letter-spacing: 2px; 
-          margin: 10px 0;
-        }
-        .footer { 
-          display: flex; 
-          justify-content: space-between; 
-          align-items: center; 
-          margin-top: 20px; 
-          padding-top: 20px; 
-          border-top: 1px solid #ddd;
-        }
-        .contact-info { 
-          font-size: 12px; 
-          color: #666;
-        }
-        .qr-placeholder { 
-          width: 60px; 
-          height: 60px; 
-          border: 1px solid #ddd; 
-          display: flex; 
-          align-items: center; 
-          justify-content: center; 
-          font-size: 10px; 
-          color: #999;
-        }
-      </style>
-    `;
-
-    // Add print styles to head
-    const styleElement = document.createElement('style');
-    styleElement.innerHTML = printStyles;
-    document.head.appendChild(styleElement);
-
-    // Add print class to receipt content
-    const receiptContent = document.getElementById('receipt-content');
-    if (receiptContent) {
-      receiptContent.classList.add('receipt-print');
-      
-      // Hide other elements during print
-      const allElements = document.querySelectorAll('body > *:not(.receipt-print)');
-      allElements.forEach(el => el.classList.add('no-print'));
-
-      // Print
-      window.print();
-
-      // Clean up after printing
-      setTimeout(() => {
-        receiptContent.classList.remove('receipt-print');
-        allElements.forEach(el => el.classList.remove('no-print'));
-        document.head.removeChild(styleElement);
-      }, 1000);
-    }
+  const receiptData = {
+    customerName: product.client_name || "N/A",
+    phoneNumber: product.client_phone || "N/A",
+    price: product.amount ? `${product.amount.toLocaleString()}` : "0.00",
+    timestamp: getCurrentTime(),
+    trackingCode: product.tracking_number || "N/A",
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md mx-auto p-0">
-        
         <div className="p-6">
-          {/* Receipt Content */}
-          <div id="receipt-content" className="receipt bg-white">
-            {/* Header */}
-            <div className="header">
-              <div className="company-name">MISOUK PRIME EXPRESS</div>
-              <hr/>
-            </div>
+          {/* Receipt Preview */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-lg font-semibold mb-4 text-center text-[#777777]">
+              ໃບບິນ
+            </h3>
 
-            {/* Order Details */}
-            <div className="details">
-              <div className="detail-row">
-                <span className="detail-label">ຊື່:</span>
-                <span className="detail-value">{product.client_name}</span>
+            {/* Receipt Layout */}
+            <div className="bg-white w-full max-w-sm mx-auto p-6 shadow-sm rounded border">
+              {/* Header */}
+              <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-blue-600 mb-1">
+                  MISOUK
+                </h1>
+                <hr />
               </div>
-              <div className="detail-row">
-                <span className="detail-label">ເບີໂທ:</span>
-                <span className="detail-value">{product.client_phone || 'N/A'}</span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">ລາຄາ:</span>
-                <span className="detail-value">
-                  {product.amount ? `${product.amount.toLocaleString()} ${formatCurrency(product.currency)}` : '0.00 LAK'}
-                </span>
-              </div>
-              <div className="detail-row">
-                <span className="detail-label">ເວລາອອກບິນ:</span>
-                <span className="detail-value">{printTime}</span>
-              </div>
-            </div>
 
-            {/* Barcode Section */}
-            <div className="barcode-section">
-              <div className="barcode">||||| ||||| ||||| |||||</div>
-              <div className="text-sm text-gray-600">{product.tracking_number}</div>
-            </div>
-
-            {/* Footer */}
-            <div className="footer">
-              <div className="contact-info">
-                <div className='text-[#777777]'>ໂທ: 020 9999 9999</div>
-                <div className='text-[#777777]'>misouk.express@gmail.com</div>
+              {/* Receipt Details */}
+              <div className="space-y-1 text-sm mb-6">
+                <div className="flex justify-between">
+                  <span className="text-[#888888]">ຊື່:</span>
+                  <span className="text-black">
+                    {receiptData.customerName}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#888888]">ເບີໂທ:</span>
+                  <span className="text-black">
+                    {receiptData.phoneNumber}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#888888]">ລາຄາ:</span>
+                  <span className="text-black">{receiptData.price} LAK</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#888888]">ເວລາອອກບິນ</span>
+                  <span className="text-black">{receiptData.timestamp}</span>
+                </div>
+                <br />
+                <hr />
               </div>
-              <div className="qr-placeholder">
-                QR Code
+
+              {/* Barcode */}
+              <div className="mb-4">
+                <div className="bg-black h-12 flex items-end justify-center">
+                  <div className="flex space-x-px h-full items-end">
+                    {Array.from({ length: 40 }, (_, i) => (
+                      <div
+                        key={i}
+                        className="bg-white w-px"
+                        style={{
+                          height: `${Math.random() * 60 + 40}%`,
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+                <p className="text-center text-xs text-[#777777] mt-1">
+                  {receiptData.trackingCode}
+                </p>
+                <br />
+                <hr />
+              </div>
+
+              {/* Footer with QR Code */}
+              <p className="text-center text-xs text-[#777777] mt-1">
+                ຂໍ້ມູນການຕິດຕໍ່
+              </p>
+              <div className="flex justify-between items-end">
+                <div className="text-xs text-[#777777]">
+                  <p>021 12345678</p>
+                  <p>misouk express</p>
+                </div>
+                <div className="w-12 h-12 border border-[#777777] flex items-center justify-center">
+                  <div className="w-10 h-10 bg-black flex items-center justify-center">
+                    <div className="w-8 h-8 bg-white grid grid-cols-8 gap-px">
+                      {Array.from({ length: 64 }, (_, i) => (
+                        <div
+                          key={i}
+                          className={`${
+                            Math.random() > 0.5
+                              ? "bg-black"
+                              : "bg-white"
+                          } w-full h-full`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 mt-6">
+          <div className="flex justify-end gap-3">
             <Button
               variant="outline"
               onClick={() => onOpenChange(false)}
@@ -237,13 +150,18 @@ const ReceiptPopup: React.FC<ReceiptPopupProps> = ({ open, onOpenChange, product
               <X className="w-4 h-4" />
               ປິດ
             </Button>
-            <Button
-              onClick={handlePrint}
-              className="flex items-center gap-2 bg-[#0c64b0] hover:bg-[#247dc9]"
-            >
-              <Printer className="w-4 h-4" />
-              ປິ້ນ
-            </Button>
+
+            {/* Print button - Only for super_admin and lao_admin */}
+            {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+              <ReceiptPrint
+                data={receiptData}
+                printTitle="MISOUK PRIME EXPRESS Receipt"
+                buttonText="ປິ້ນໃບບິນ"
+                buttonVariant="default"
+                directPrint={true}
+                className="flex items-center gap-2 bg-[#0c64b0] hover:bg-[#247dc9] text-white px-4 py-2 rounded"
+              />
+            )}
           </div>
         </div>
       </DialogContent>
