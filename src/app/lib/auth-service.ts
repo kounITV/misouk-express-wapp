@@ -398,12 +398,15 @@ export class AuthService {
       
       switch (roleName) {
         case 'super_admin':
+        case 'normal_user':
+          window.location.href = '/data-check';
+          break;
         case 'thai_admin':
         case 'lao_admin':
           window.location.href = '/product';
           break;
         default:
-          window.location.href = '/product';
+          window.location.href = '/data-check';
       }
     }
   }

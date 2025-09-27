@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,21 @@ export default function DataCheckPage() {
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [hasSearched, setHasSearched] = useState<boolean>(false);
   const { user: currentUser, isMounted } = useAuth();
+
+  // Auto search with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim().length > 0) {
+        handleSearch(searchTerm);
+      } else if (searchTerm.trim().length === 0 && hasSearched) {
+        // Clear results when search term is empty
+        setSearchResults([]);
+        setHasSearched(false);
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
 
   // Handle URL parameters on component mount
   useEffect(() => {
@@ -118,7 +133,9 @@ export default function DataCheckPage() {
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
     });
   };
 
@@ -129,7 +146,12 @@ export default function DataCheckPage() {
 
   const formatTimeOnly = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('en-GB', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false 
+    });
   };
 
   const getDeliverySteps = (status: string, createdAt: string, updatedAt: string) => {
@@ -179,6 +201,20 @@ export default function DataCheckPage() {
     steps.forEach((step, index) => {
       if (index <= currentIndex) {
         step.completed = true;
+        // For AT_THAI_BRANCH status, always show created_at
+        if (status === 'AT_THAI_BRANCH' && index === 0) {
+          step.date = formatDateOnly(createdAt);
+          step.time = formatTimeOnly(createdAt);
+        }
+        // For other completed steps, use updated_at if status has changed
+        else if (index === currentIndex && updatedAt !== createdAt) {
+          step.date = formatDateOnly(updatedAt);
+          step.time = formatTimeOnly(updatedAt);
+        }
+      } else {
+        // For pending steps (not completed), show "-" instead of time
+        step.time = '-';
+        step.date = '-';
       }
     });
 

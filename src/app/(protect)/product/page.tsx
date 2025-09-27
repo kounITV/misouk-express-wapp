@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, Plus, Search, Edit3 } from "lucide-react";
+import { Package, Plus, Search, Edit3, X } from "lucide-react";
 import Image from "next/image";
 import { AuthService } from "@/lib/auth-service";
 import { useAuth } from "@/lib/hooks/use-auth";
@@ -720,6 +720,25 @@ export default function ProductManagementPage() {
     fetchProducts(1, itemsPerPage);
   }, [searchTerm, statusFilter, itemsPerPage]);
 
+  const handleClearFilters = useCallback(() => {
+    setSearchTerm("");
+    setStatusFilter("");
+    fetchProducts(1, itemsPerPage);
+  }, [itemsPerPage]);
+
+  // Auto search with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim().length > 0) {
+        fetchProducts(1, itemsPerPage);
+      } else if (searchTerm.trim().length === 0) {
+        fetchProducts(1, itemsPerPage);
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, statusFilter, itemsPerPage]);
+
   useEffect(() => {
     fetchProducts();
   }, [statusFilter]); // Fetch when status filter changes
@@ -1276,6 +1295,19 @@ export default function ProductManagementPage() {
                       </>
                     )}
                   </select>
+
+                  {/* Clear Filters Button - Only show when filters are active */}
+                  {(searchTerm.trim() || statusFilter) && (
+                    <Button
+                      onClick={handleClearFilters}
+                      variant="outline"
+                      // className="px-3 py-2 text-sm border-gray-300 text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                      className="bg-[#e41616] hover:bg-[#f49393] text-white text-sm px-3 py-2 flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      ລຶບຕົວກອງ
+                    </Button>
+                  )}
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 sm:gap-3">

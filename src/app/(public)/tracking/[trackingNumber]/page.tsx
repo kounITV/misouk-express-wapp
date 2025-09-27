@@ -205,8 +205,8 @@ const TrackingDetailsPage = () => {
   };
 
   return (
-    <div className="bg-[#f8fafc] py-8 min-h-screen ">
-      {/* <div className="max-w-6xl min-w-300sm mx-auto px-6"> */}
+    <div className="bg-[#f8fafc] py-6 px-4 sm:px-6 md:px-10 min-h-screen">
+      <div className="max-w-5xl mx-auto">
         {/* Header with Search */}
         <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 mb-8">
           <div className="text-center mb-8">
@@ -335,7 +335,7 @@ const TrackingDetailsPage = () => {
             </Button>
           </div>
         )}
-      {/* </div> */}
+      </div>
     </div>
   );
 };

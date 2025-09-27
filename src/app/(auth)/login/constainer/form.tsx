@@ -61,7 +61,7 @@ export function LoginForm() {
         
         // Use Next.js router for navigation instead of window.location
         const userRole = (result.data.user as any)?.role || 'super_admin';
-        const redirectPath = userRole === 'super_admin' ? '/product' : '/user';
+        const redirectPath = (userRole === 'super_admin' || userRole === 'normal_user') ? '/data-check' : '/user';
         console.log('Redirecting to:', redirectPath);
         
         // Use router.push for better navigation
@@ -76,7 +76,7 @@ export function LoginForm() {
         
         // Use Next.js router for navigation
         const userRole = (result.data.user as any)?.role || 'super_admin';
-        const redirectPath = userRole === 'super_admin' ? '/product' : '/user';
+        const redirectPath = (userRole === 'super_admin' || userRole === 'normal_user') ? '/data-check' : '/user';
         console.log('Redirecting to:', redirectPath);
         
         setTimeout(() => {

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, Download, Calendar, BarChart3, TrendingUp, Users, Package, Search, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { FileText, Download, Calendar, BarChart3, TrendingUp, Users, Package, Search, ChevronDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X } from "lucide-react";
 import { Pagination } from "@/components/ui/pagination";
 import Image from "next/image";
 import { AuthService } from "@/lib/auth-service";
@@ -461,6 +461,32 @@ export default function ReportPage() {
     fetchOrdersWithDateFilter(1, itemsPerPage);
   };
 
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setSelectedStatus("");
+    setSelectedCurrency("");
+    setSelectedPayment("");
+    setOrdersStartDate("");
+    setOrdersEndDate("");
+    setCurrentPage(1);
+    fetchOrdersWithDateFilter(1, itemsPerPage);
+  };
+
+  // Auto search with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm.trim().length > 0) {
+        setCurrentPage(1);
+        fetchOrdersWithDateFilter(1, itemsPerPage);
+      } else if (searchTerm.trim().length === 0) {
+        setCurrentPage(1);
+        fetchOrdersWithDateFilter(1, itemsPerPage);
+      }
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, selectedStatus, selectedCurrency, selectedPayment, ordersStartDate, ordersEndDate, itemsPerPage]);
+
   return (
     <div className="h-screen bg-gray-50 flex flex-col lg:flex-row overflow-hidden">
       {/* Responsive Sidebar */}
@@ -716,6 +742,19 @@ export default function ReportPage() {
                   >
                     ຄົ້ນຫາ
                   </Button>
+
+                  {/* Clear Filters Button - Only show when filters are active */}
+                  {(searchTerm.trim() || selectedStatus || selectedCurrency || selectedPayment || ordersStartDate || ordersEndDate) && (
+                    <Button
+                      onClick={handleClearFilters}
+                      variant="outline"
+                      // className="px-4 py-2 text-sm border-gray-300 text-gray-600 hover:bg-gray-50 whitespace-nowrap"
+                      className="bg-[#e41616] hover:bg-[#f49393] text-white text-sm px-3 py-2 flex items-center gap-2"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      ລຶບຕົວກອງ
+                    </Button>
+                  )}
                     </div>
                   </div>
             </div>

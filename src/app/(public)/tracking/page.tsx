@@ -10,12 +10,17 @@ import { apiEndpoints } from "@/lib/config";
 
 export default function TrackingPage() {
     const [trackingNumber, setTrackingNumber] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
     const router = useRouter();
 
     const handleSearch = () => {
         if (trackingNumber.trim()) {
-            // Redirect to tracking details page with the tracking number
-            router.push(`/tracking/${encodeURIComponent(trackingNumber.trim())}`);
+            setIsSearching(true);
+            // Add a small delay to show progress indicator
+            setTimeout(() => {
+                // Redirect to tracking details page with the tracking number
+                router.push(`/tracking/${encodeURIComponent(trackingNumber.trim())}`);
+            }, 500);
         }
     };
 
@@ -63,35 +68,57 @@ export default function TrackingPage() {
                         <Input
                             type="text"
                             placeholder="ປ້ອນລະຫັດສິນຄ້າ"
-                            className="h-10 sm:h-12 text-sm sm:text-base border-[#247DC9] focus:border-[#247DC9] focus:ring-[#247DC9] pl-9 sm:pl-10 text-[#247DC9]"
+                            className={`h-10 sm:h-12 text-sm sm:text-base border-[#247DC9] focus:border-[#247DC9] focus:ring-[#247DC9] pl-9 sm:pl-10 text-[#247DC9] ${isSearching ? 'opacity-50' : ''}`}
                             value={trackingNumber}
                             onChange={(e) => setTrackingNumber(e.target.value)}
                             onKeyPress={handleKeyPress}
+                            disabled={isSearching}
                         />
                     </div>
                     <Button 
                         className="bg-[#247dc9] hover:bg-[#0c64b0] text-[#ffffff] px-6 sm:px-8 h-10 sm:h-12 touch-button"
                         onClick={handleSearch}
-                        disabled={!trackingNumber.trim()}
+                        disabled={!trackingNumber.trim() || isSearching}
                     >
-                        ຄົ້ນຫາ
+                        {isSearching ? (
+                            <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                <span>ກຳລັງຄົ້ນຫາ...</span>
+                            </div>
+                        ) : (
+                            'ຄົ້ນຫາ'
+                        )}
                     </Button>
                 </div>
 
-                {/* Document and Person Illustration */}
-                <div className="flex flex-col items-center mb-6 sm:mb-8">
-                    <div className="relative w-60 sm:w-80 h-48 sm:h-64 flex items-center justify-center">
-                        <Image 
-                            src="/empty.png" 
-                            alt="Empty" 
-                            width={100} 
-                            height={150} 
-                            className="w-16 h-24 sm:w-20 sm:h-30"
-                        />
+                {/* Progress Indicator or Empty State */}
+                {isSearching ? (
+                    <div className="flex flex-col items-center mb-6 sm:mb-8">
+                        <div className="relative w-60 sm:w-80 h-48 sm:h-64 flex items-center justify-center">
+                            <div className="flex flex-col items-center gap-4">
+                                <div className="w-16 h-16 border-4 border-[#247dc9] border-t-transparent rounded-full animate-spin"></div>
+                                <div className="text-center">
+                                    <p className="text-[#247dc9] text-base sm:text-lg font-medium">ກຳລັງຄົ້ນຫາຂໍ້ມູນ...</p>
+                                    <p className="text-gray-500 text-sm mt-2">ກະລຸນາລໍຖ້າສັກຄູ່</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    
-                    <p className="text-[#247dc9] text-base sm:text-lg font-medium">ຂໍ້ມູນວ່າງເປົ່າ</p>
-                </div>
+                ) : (
+                    <div className="flex flex-col items-center mb-6 sm:mb-8">
+                        <div className="relative w-60 sm:w-80 h-48 sm:h-64 flex items-center justify-center">
+                            <Image 
+                                src="/empty.png" 
+                                alt="Empty" 
+                                width={100} 
+                                height={150} 
+                                className="w-16 h-24 sm:w-20 sm:h-30"
+                            />
+                        </div>
+                        
+                        <p className="text-[#247dc9] text-base sm:text-lg font-medium">ຂໍ້ມູນວ່າງເປົ່າ</p>
+                    </div>
+                )}
             </div>
         </div>
     );
