@@ -24,6 +24,8 @@ import { createOrder, CreateOrderData } from "@/lib/api/orders";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { useDirectPrint } from "@/components/ui/direct-print";
+import { FloatingPrintButton } from "@/components/ui/floating-print-button";
+import { usePrintSelectedProducts } from "@/components/ui/print-selected-products";
 
 // Simple Copy Component for tracking number (no tooltip)
 interface CopyTextProps {
@@ -311,6 +313,9 @@ export default function ProductManagementPage() {
 
   // Use the direct print hook
   const { printProductReceipt } = useDirectPrint();
+  
+  // Use the print selected products hook
+  const { printSelectedProducts } = usePrintSelectedProducts();
 
   // Helper function to handle API error responses
   const handleApiError = async (response: Response) => {
@@ -820,6 +825,20 @@ export default function ProductManagementPage() {
     setProductForReceipt(product);
     setShowReceiptPopup(true);
   }, []);
+
+  // Handle direct print selected products
+  const handlePrintSelected = useCallback(() => {
+    if (selectedItems.size === 0) return;
+    
+    const selectedProducts = products.filter(product => selectedItems.has(product.id));
+    
+    // Print with callback to clear selection after successful print
+    printSelectedProducts(selectedProducts, () => {
+      // Clear selection after successful print
+      setSelectedItems(new Set());
+      setSelectAll(false);
+    });
+  }, [selectedItems, products, printSelectedProducts]);
 
   // Handle direct print without popup
   const handleDirectPrintReceipt = useCallback((product: Product) => {
@@ -1407,9 +1426,10 @@ export default function ProductManagementPage() {
                           {/* ລຫັດ */}
                           <td className="px-1 sm:px-3 lg:px-6 py-3 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-blue-600 font-bold min-w-[80px]">
                             <CopyText text={product.tracking_number} className="max-w-[80px]">
-                              {product.tracking_number.length > 8
+                              {/* {product.tracking_number.length > 8
                                 ? `${product.tracking_number.substring(0, 8)}...`
-                                : product.tracking_number}
+                                : product.tracking_number} */}
+                                {product.tracking_number}
                             </CopyText>
                           </td>
                           {/* ເບີໂທ - Always visible */}
@@ -1683,9 +1703,19 @@ export default function ProductManagementPage() {
               userRole={userRole}
             />
 
+
           </div>
         </main>
       </div>
+
+      {/* Floating Print Button - Only for super_admin and lao_admin */}
+      {(userRole === 'super_admin' || userRole === 'lao_admin') && (
+        <FloatingPrintButton
+          isVisible={selectedItems.size > 0}
+          selectedCount={selectedItems.size}
+          onPrint={handlePrintSelected}
+        />
+      )}
 
       {/* Toast notifications */}
       <Toaster />

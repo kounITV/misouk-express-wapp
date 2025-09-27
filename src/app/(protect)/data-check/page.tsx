@@ -428,7 +428,7 @@ export default function DataCheckPage() {
                             
                             {/* Updated Date */}
                             <div>
-                              <span className="text-gray-600">ວັນທີແກ້ໄຂ: </span>
+                              <span className="text-gray-600">ວັນທີ່ອັບເດດລ່າສຸດ: </span>
                               <span className="text-gray-900">{formatDate(product.updated_at)}</span>
                             </div>
                           </div>

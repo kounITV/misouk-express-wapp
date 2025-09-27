@@ -23,4 +23,6 @@ export * from "./success-popup";
 export * from "./confirmation-popup";
 export * from "./print-button";
 export * from "./receipt-print";
+export * from "./floating-print-button";
+export * from "./print-selected-products";
 export { default as ErrorBoundary, AsyncErrorBoundary, useErrorHandler } from "./error-boundary";
