@@ -72,7 +72,7 @@ export const SuccessPopup: React.FC<SuccessPopupProps> = ({
           </div>
           
           {/* Success Title */}
-          <h2 className="text-xl sm:text-2xl font-bold text-[#00693e]">
+          <h2 className="text-xl sm:text-2xl font-bold text-green-600">
             {title}
           </h2>
           
@@ -91,7 +91,7 @@ export const SuccessPopup: React.FC<SuccessPopupProps> = ({
           {/* OK Button */}
           <button
             onClick={handleManualClose}
-            className="bg-[#00693e] text-white px-6 sm:px-8 py-2 sm:py-3 rounded-md hover:bg-[#005530] transition-colors font-medium mt-4 text-sm sm:text-base"
+            className="bg-green-500 text-white px-6 sm:px-8 py-2 sm:py-3 rounded-md hover:bg-green-600 transition-colors font-medium mt-4 text-sm sm:text-base"
           >
             ຕົກລົງ
           </button>

@@ -4,10 +4,10 @@ import { memo } from "react";
 
 // Contact information constants to avoid duplication
 const CONTACT_INFO = {
-  phone: "021 12345678",
-  whatsapp: "020 12345678",
+  phone: "020 76677945",
+  whatsapp: "020 76677945",
   email: "info@express.la",
-  facebook: "MISOUK EXPRESS",
+  facebook: "ມີສຸກ ຂົນສົງ - Misouk Express",
 } as const;
 
 const COMPANY_ADDRESS = [

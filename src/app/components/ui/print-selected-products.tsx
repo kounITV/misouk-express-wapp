@@ -109,11 +109,11 @@ export const PrintSelectedProducts: React.FC<PrintSelectedProductsProps> = ({
             <div class="contact-details">
               <p>
                 <img src="/call.png" alt="phone" class="contact-icon" />
-                021 12345678
+                020 76677945
               </p>
               <p>
                 <img src="/facebook.png" alt="facebook" class="contact-icon" />
-                misouk express
+                ມີສຸກ ຂົນສົງ - Misouk Express
               </p>
             </div>
             <div class="qr-code">
@@ -422,11 +422,11 @@ export const usePrintSelectedProducts = () => {
               <div class="contact-details">
                 <p>
                   <img src="/call.png" alt="phone" class="contact-icon" />
-                  021 12345678
+                  020 76677945
                 </p>
                 <p>
                   <img src="/facebook.png" alt="facebook" class="contact-icon" />
-                  misouk express
+                  ມີສຸກ ຂົນສົງ - Misouk Express
                 </p>
               </div>
               <div class="qr-code">

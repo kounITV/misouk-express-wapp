@@ -51,7 +51,7 @@ export const ConfirmationPopup: React.FC<ConfirmationPopupProps> = ({
           </div>
           
           {/* Title */}
-          <h2 className="text-lg sm:text-xl font-bold text-[#0c64b0]">
+          <h2 className="text-lg sm:text-xl font-bold text-blue-600">
             {title}
           </h2>
           
@@ -72,7 +72,7 @@ export const ConfirmationPopup: React.FC<ConfirmationPopupProps> = ({
             <button
               onClick={handleConfirm}
               disabled={loading}
-              className="bg-[#0c64b0] text-white px-4 sm:px-6 py-2 rounded-md hover:bg-[#247dc9] transition-colors text-sm sm:text-base disabled:opacity-75 min-w-[80px] order-1 sm:order-2"
+              className="bg-blue-500 text-white px-4 sm:px-6 py-2 rounded-md hover:bg-blue-600 transition-colors text-sm sm:text-base disabled:opacity-75 min-w-[80px] order-1 sm:order-2"
             >
               {loading ? (
                 <div className="flex items-center justify-center gap-2">

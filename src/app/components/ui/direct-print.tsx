@@ -264,11 +264,11 @@ export const DirectPrint: React.FC<DirectPrintProps> = ({ product, onPrint }) =>
                 <div class="contact-details">
                   <p>
                     <img src="/call.png" alt="phone" class="contact-icon" />
-                    021 12345678
+                    020 76677945
                   </p>
                   <p>
                     <img src="/facebook.png" alt="facebook" class="contact-icon" />
-                    misouk express
+                    ມີສຸກ ຂົນສົງ - Misouk Express
                   </p>
                 </div>
                 <div class="qr-code">
@@ -454,8 +454,7 @@ export const useDirectPrint = () => {
               margin-bottom: 8mm; 
             }
             .detail-row { 
-              display: flex; 
-              justify-content: space-between; 
+   
               margin-bottom: 2mm; 
               font-size: 11px;
             }
@@ -579,11 +578,11 @@ export const useDirectPrint = () => {
                 <div class="contact-details">
                   <p>
                     <img src="/call.png" alt="phone" class="contact-icon" />
-                    021 12345678
+                    020 76677945
                   </p>
                   <p>
                     <img src="/facebook.png" alt="facebook" class="contact-icon" />
-                    misouk express
+                    ມີສຸກ ຂົນສົງ - Misouk Express
                   </p>
                 </div>
                 <div class="qr-code">

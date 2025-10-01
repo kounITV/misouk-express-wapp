@@ -90,7 +90,7 @@ const ProductDialog = memo(({
   const [alertConfig, setAlertConfig] = useState({
     title: '',
     message: '',
-    type: 'info' as 'error' | 'warning' | 'info'
+    type: 'info' as 'error' | 'warning' | 'success' | 'info'
   });
 
   // Inline editing states
@@ -111,7 +111,7 @@ const ProductDialog = memo(({
   };
 
   // Helper function to show alerts
-  const showAlert = (message: string, type: 'error' | 'warning' | 'info' = 'error', title?: string) => {
+  const showAlert = (message: string, type: 'error' | 'warning' | 'success' | 'info' = 'error', title?: string) => {
     setAlertConfig({ title: title || '', message, type });
     setShowAlertPopup(true);
   };

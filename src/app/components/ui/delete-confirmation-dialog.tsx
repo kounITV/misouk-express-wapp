@@ -49,14 +49,14 @@ export const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> =
             <Button 
               onClick={handleCancel}
               disabled={loading}
-              className="bg-[#F6FAFF] text-[#247DC9] border border-[#247DC9] hover:bg-[#E8F4FF] px-4 sm:px-6 py-2 disabled:opacity-50 text-sm sm:text-base order-2 sm:order-1"
+              className="bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 px-4 sm:px-6 py-2 disabled:opacity-50 text-sm sm:text-base order-2 sm:order-1"
             >
               ຍົກເລີກ
             </Button>
             <Button 
               onClick={handleConfirm}
               disabled={loading}
-              className="bg-[#247DC9] text-[#FFFFFF] hover:bg-[#1e6bb8] px-4 sm:px-6 py-2 disabled:opacity-75 min-w-[80px] text-sm sm:text-base order-1 sm:order-2"
+              className="bg-red-500 text-white hover:bg-red-600 px-4 sm:px-6 py-2 disabled:opacity-75 min-w-[80px] text-sm sm:text-base order-1 sm:order-2"
             >
               {loading ? (
                 <div className="flex items-center justify-center gap-2">
